@@ -41,9 +41,9 @@ function FlaskIcon({ className }: IconProps) {
 }
 
 const opportunities = [
-  { department: "Computer Science", focus: "ML for Real-world Impact", description: "Building intelligent systems that solve meaningful problems.", tag: "Undergraduate · Data Science", icon: CircuitIcon, position: "lg:right-3 lg:top-2" },
-  { department: "Biology", focus: "Genomics & Health", description: "Exploring the genetic basis of human health and disease.", tag: "Undergraduate · Wet Lab", icon: MicroscopeIcon, position: "lg:left-0 lg:top-48" },
-  { department: "Psychology", focus: "Mind, Behavior, & Society", description: "Understanding how people think, feel, and interact.", tag: "Undergraduate · Behavioral", icon: BrainIcon, position: "lg:right-0 lg:bottom-0" },
+  { department: "Computer Science", focus: "ML for Real-world Impact", description: "Building intelligent systems that solve meaningful problems.", tag: "Undergraduate · Data Science", icon: CircuitIcon, position: "xl:right-3 xl:top-2" },
+  { department: "Biology", focus: "Genomics & Health", description: "Exploring the genetic basis of human health and disease.", tag: "Undergraduate · Wet Lab", icon: MicroscopeIcon, position: "xl:left-0 xl:top-48" },
+  { department: "Psychology", focus: "Mind, Behavior, & Society", description: "Understanding how people think, feel, and interact.", tag: "Undergraduate · Behavioral", icon: BrainIcon, position: "xl:right-0 xl:bottom-0" },
 ];
 
 const steps = [
@@ -60,11 +60,11 @@ const featureItems = [
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f8eedf] text-[#211916]">
+    <main className="min-h-screen overflow-x-hidden bg-[#f8eedf] text-[#211916]">
       <div className="paper-texture relative">
-        <nav className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
+        <nav className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-5 sm:px-8 xl:px-12">
           <Link href="/" aria-label="ResearchBridge home"><Image src={logo} alt="ResearchBridge" className="h-auto w-44 sm:w-56" priority /></Link>
-          <div className="hidden items-center gap-12 text-[15px] font-semibold text-[#4e433c] lg:flex">
+          <div className="hidden items-center gap-12 text-[15px] font-semibold text-[#4e433c] xl:flex">
             <Link href="/opportunities" className="transition hover:text-[#b63d28]">Explore opportunities</Link>
             <Link href="/professor" className="transition hover:text-[#b63d28]">For PIs</Link>
             <a href="#how-it-works" className="transition hover:text-[#b63d28]">How it works</a>
@@ -75,10 +75,10 @@ export default function Home() {
           </div>
         </nav>
 
-        <section className="mx-auto grid max-w-[1440px] gap-12 px-5 pb-20 pt-14 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:px-12 lg:pb-24 lg:pt-24">
+        <section className="mx-auto grid max-w-[1440px] gap-12 px-5 pb-20 pt-14 sm:px-8 xl:grid-cols-[0.9fr_1.1fr] xl:px-12 xl:pb-24 xl:pt-24">
           <div className="relative z-10 max-w-2xl self-center">
             <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-[#b83e28]">Find your research</p>
-            <h1 className="font-serif text-5xl font-black leading-[0.98] tracking-[-0.035em] text-[#211916] sm:text-6xl lg:text-7xl xl:text-[82px]">Find the research that moves you <span className="text-[#b83e28]">forward.</span></h1>
+            <h1 className="font-serif text-5xl font-black leading-[0.98] tracking-[-0.035em] text-[#211916] sm:text-6xl xl:text-7xl xl:text-[82px]">Find the research that moves you <span className="text-[#b83e28]">forward.</span></h1>
             <p className="mt-7 max-w-xl text-lg leading-8 text-[#675b53] sm:text-xl">ResearchBridge connects curious students with faculty and research opportunities that spark growth, impact, and discovery.</p>
             <div className="mt-9 flex flex-col gap-4 sm:flex-row">
               <Link href="/opportunities" className="rounded-lg bg-[#b83e28] px-7 py-4 text-center font-bold text-white shadow-[0_10px_22px_rgba(132,43,26,0.2)] transition hover:-translate-y-0.5 hover:bg-[#96301f]">Explore opportunities</Link>
@@ -86,14 +86,14 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative lg:min-h-[560px]">
-            <svg viewBox="0 0 660 560" className="pointer-events-none absolute inset-0 hidden h-full w-full text-[#c9aa85] lg:block" fill="none" aria-hidden="true">
+          <div className="relative xl:min-h-[560px]">
+            <svg viewBox="0 0 660 560" className="pointer-events-none absolute inset-0 hidden h-full w-full text-[#c9aa85] xl:block" fill="none" aria-hidden="true">
               <path d="M372 91H466M371 92C322 92 297 130 297 184V244M297 306V360C297 403 333 429 382 429H468M466 91v98c0 45 33 63 82 63h31c43 0 61 31 61 67v54" stroke="currentColor" strokeWidth="1.5" />
               <circle cx="372" cy="92" r="6" fill="#c44c2b" /><circle cx="297" cy="244" r="6" fill="#e79037" /><circle cx="382" cy="429" r="6" fill="#e79037" /><circle cx="548" cy="252" r="6" fill="#c44c2b" /><circle cx="609" cy="373" r="6" fill="#e79037" />
             </svg>
-            <div className="relative space-y-5 lg:space-y-0">
+            <div className="relative space-y-5 xl:space-y-0">
               {opportunities.map(({ icon: Icon, position, ...opportunity }) => (
-                <article key={opportunity.department} className={"group relative w-full rounded-[24px] border border-[#eadbca] bg-[#fffaf3]/95 p-6 shadow-[0_16px_34px_rgba(74,53,35,0.13)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(74,53,35,0.16)] sm:p-7 lg:absolute lg:w-[355px] " + position}>
+                <article key={opportunity.department} className={"group relative w-full rounded-[24px] border border-[#eadbca] bg-[#fffaf3]/95 p-6 shadow-[0_16px_34px_rgba(74,53,35,0.13)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(74,53,35,0.16)] sm:p-7 xl:absolute xl:w-[355px] " + position}>
                   <div className="flex gap-5"><div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[#f9ecd9] text-[#bc4827]"><Icon className="h-11 w-11" /></div><div><h2 className="font-serif text-2xl font-bold tracking-tight">{opportunity.department}</h2><p className="mt-1 text-[15px] font-medium text-[#574941]">{opportunity.focus}</p><p className="mt-3 text-sm leading-5 text-[#6d6057]">{opportunity.description}</p><span className="mt-4 inline-flex rounded-md bg-[#fbe7cf] px-2.5 py-1 text-xs font-semibold text-[#c45a18]">{opportunity.tag}</span></div></div>
                 </article>
               ))}
@@ -101,7 +101,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[1400px] px-5 pb-20 sm:px-8 lg:px-12">
+        <section className="mx-auto max-w-[1400px] px-5 pb-20 sm:px-8 xl:px-12">
           <div className="grid overflow-hidden rounded-[22px] border border-[#eadcc9] bg-[#f3e5d1]/85 md:grid-cols-[1.7fr_1fr_1fr_1fr]">
             <div className="flex items-center gap-5 border-b border-[#e2cfb9] px-7 py-7 md:border-b-0 md:border-r"><div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#f9eddb] text-[#c35b1d]"><UniversityIcon className="h-8 w-8" /></div><p className="font-serif text-xl font-bold leading-snug">Built for students, faculty, and research labs.</p></div>
             {featureItems.map(({ icon: Icon, text }, index) => <div key={text} className={"flex items-center gap-4 px-6 py-7 " + (index < 2 ? "border-b border-[#e2cfb9] md:border-b-0 md:border-r" : "")}><Icon className="h-8 w-8 shrink-0 text-[#d97923]" /><p className="text-sm leading-5 text-[#5d5048]">{text}</p></div>)}
@@ -109,7 +109,7 @@ export default function Home() {
         </section>
       </div>
 
-      <section id="how-it-works" className="bg-[#fff8ee] px-5 py-20 sm:px-8 lg:px-12">
+      <section id="how-it-works" className="bg-[#fff8ee] px-5 py-20 sm:px-8 xl:px-12">
         <div className="mx-auto max-w-[1240px]">
           <div className="text-center"><p className="text-xs font-bold uppercase tracking-[0.22em] text-[#b83e28]">How it works</p><h2 className="mt-4 font-serif text-4xl font-black tracking-tight sm:text-5xl">From <span className="text-[#b83e28]">curiosity</span> to contribution.</h2><div className="mx-auto mt-5 flex items-center justify-center gap-2 text-[#d77425]"><span className="h-px w-20 bg-[#dfc6aa]" /><span className="h-2 w-2 rounded-full bg-current" /><span className="h-2 w-2 rounded-full bg-current" /><span className="h-2 w-2 rounded-full bg-current" /><span className="h-px w-20 bg-[#dfc6aa]" /></div></div>
           <div className="mt-14 grid gap-8 md:grid-cols-3 md:gap-0">
