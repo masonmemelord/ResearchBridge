@@ -17,4 +17,3 @@ An AI-assisted research discovery platform connecting students with professors a
 **November 1**: a polished, measurable product—not merely a technical prototype.
 **November 5**: presentation-ready release candidate.
 **November 11**: Present at NOAI!
-# ResearchBridge

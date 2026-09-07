@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8eedf;
+  --foreground: #211916;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: #d97923;
+  color: white;
+}
+
+.paper-texture {
+  background-color: #f8eedf;
+  background-image:
+    radial-gradient(circle at 14% 18%, rgba(190, 124, 47, 0.11) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 85% 34%, rgba(138, 84, 45, 0.08) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 45% 80%, rgba(193, 75, 40, 0.06) 0 1px, transparent 1.5px);
+  background-size: 13px 17px, 19px 23px, 29px 31px;
+}
+
