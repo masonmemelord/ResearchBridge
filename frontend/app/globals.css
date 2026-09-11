@@ -1,36 +1,112 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8eedf;
-  --foreground: #211916;
+  --rb-canvas: #f8eedf;
+  --rb-surface: #fff8ee;
+  --rb-card: #fffaf3;
+  --rb-ink: #211916;
+  --rb-muted: #675b53;
+  --rb-brand: #b83e28;
+  --rb-brand-hover: #96301f;
+  --rb-accent: #d97923;
+  --rb-border: #eadbca;
+  --rb-soft-border: #e2cfb9;
+  --rb-icon-surface: #f9ecd9;
+  --rb-tag-surface: #fbe7cf;
+  --rb-display: Georgia, "Times New Roman", serif;
+  --rb-body: Arial, Helvetica, sans-serif;
 }
 
-* {
+@theme inline {
+  --color-rb-canvas: var(--rb-canvas);
+  --color-rb-surface: var(--rb-surface);
+  --color-rb-card: var(--rb-card);
+  --color-rb-ink: var(--rb-ink);
+  --color-rb-muted: var(--rb-muted);
+  --color-rb-brand: var(--rb-brand);
+  --color-rb-brand-hover: var(--rb-brand-hover);
+  --color-rb-accent: var(--rb-accent);
+  --color-rb-border: var(--rb-border);
+  --color-rb-soft-border: var(--rb-soft-border);
+  --color-rb-icon-surface: var(--rb-icon-surface);
+  --color-rb-tag-surface: var(--rb-tag-surface);
+  --font-sans: var(--rb-body);
+  --font-serif: var(--rb-display);
+}
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 html {
+  min-width: 320px;
   scroll-behavior: smooth;
 }
 
 body {
+  min-width: 320px;
   margin: 0;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  background: var(--rb-canvas);
+  color: var(--rb-ink);
+  font-family: var(--rb-body);
+  text-rendering: optimizeLegibility;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--rb-accent) 75%, white);
+  outline-offset: 3px;
 }
 
 ::selection {
-  background: #d97923;
+  background: var(--rb-accent);
   color: white;
 }
 
 .paper-texture {
-  background-color: #f8eedf;
+  background-color: var(--rb-canvas);
   background-image:
-    radial-gradient(circle at 14% 18%, rgba(190, 124, 47, 0.11) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 85% 34%, rgba(138, 84, 45, 0.08) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 45% 80%, rgba(193, 75, 40, 0.06) 0 1px, transparent 1.5px);
+    radial-gradient(circle at 14% 18%, rgb(190 124 47 / 11%) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 85% 34%, rgb(138 84 45 / 8%) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 45% 80%, rgb(193 75 40 / 6%) 0 1px, transparent 1.5px);
   background-size: 13px 17px, 19px 23px, 29px 31px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
