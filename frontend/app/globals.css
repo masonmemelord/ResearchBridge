@@ -1,18 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --rb-canvas: #f8eedf;
-  --rb-surface: #fff8ee;
-  --rb-card: #fffaf3;
-  --rb-ink: #211916;
-  --rb-muted: #675b53;
-  --rb-brand: #b83e28;
-  --rb-brand-hover: #96301f;
-  --rb-accent: #d97923;
-  --rb-border: #eadbca;
-  --rb-soft-border: #e2cfb9;
-  --rb-icon-surface: #f9ecd9;
-  --rb-tag-surface: #fbe7cf;
+  --rb-canvas: #ffffff;
+  --rb-surface: #e6f0ea;
+  --rb-card: #ffffff;
+  --rb-ink: #111111;
+  --rb-muted: rgba(17, 17, 17, 0.7);
+  --rb-brand: #006747;
+  --rb-brand-hover: #00513a;
+  --rb-brand-active: #003b2a;
+  --rb-accent: #418fde;
+  --rb-border: rgba(0, 103, 71, 0.16);
+  --rb-soft-border: rgba(0, 103, 71, 0.28);
+  --rb-icon-surface: #e6f0ea;
+  --rb-tag-surface: #e4effb;
   --rb-display: Georgia, "Times New Roman", serif;
   --rb-body: Arial, Helvetica, sans-serif;
 }
@@ -25,6 +26,7 @@
   --color-rb-muted: var(--rb-muted);
   --color-rb-brand: var(--rb-brand);
   --color-rb-brand-hover: var(--rb-brand-hover);
+  --color-rb-brand-active: var(--rb-brand-active);
   --color-rb-accent: var(--rb-accent);
   --color-rb-border: var(--rb-border);
   --color-rb-soft-border: var(--rb-soft-border);
@@ -78,21 +80,21 @@ button {
 }
 
 :focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--rb-accent) 75%, white);
-  outline-offset: 3px;
+  outline: 2px solid var(--rb-brand);
+  outline-offset: 2px;
 }
 
 ::selection {
-  background: var(--rb-accent);
+  background: var(--rb-brand);
   color: white;
 }
 
 .paper-texture {
   background-color: var(--rb-canvas);
   background-image:
-    radial-gradient(circle at 14% 18%, rgb(190 124 47 / 11%) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 85% 34%, rgb(138 84 45 / 8%) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 45% 80%, rgb(193 75 40 / 6%) 0 1px, transparent 1.5px);
+    radial-gradient(circle at 14% 18%, rgb(0 103 71 / 9%) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 85% 34%, rgb(65 143 222 / 8%) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 45% 80%, rgb(0 103 71 / 6%) 0 1px, transparent 1.5px);
   background-size: 13px 17px, 19px 23px, 29px 31px;
 }
 

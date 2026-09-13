@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import logo from "./researchbridgelogo.jpeg";
+import logo from "./TRALogo.png";
 
 type IconProps = { className?: string };
 
@@ -60,41 +60,48 @@ const featureItems = [
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f8eedf] text-[#211916]">
+    <main className="min-h-screen overflow-x-hidden bg-[#ffffff] text-[#111111]">
+      <div className="h-1.5 bg-[linear-gradient(90deg,#006747_0_72%,#418fde_72%_100%)]" aria-hidden="true" />
       <div className="paper-texture relative">
-        <nav className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-5 sm:px-8 xl:px-12">
-          <Link href="/" aria-label="ResearchBridge home"><Image src={logo} alt="ResearchBridge" className="h-auto w-44 sm:w-56" priority /></Link>
-          <div className="hidden items-center gap-12 text-[15px] font-semibold text-[#4e433c] xl:flex">
-            <Link href="/opportunities" className="transition hover:text-[#b63d28]">Explore opportunities</Link>
-            <Link href="/professor" className="transition hover:text-[#b63d28]">For PIs</Link>
-            <a href="#how-it-works" className="transition hover:text-[#b63d28]">How it works</a>
+        <nav className="mx-auto flex max-w-[1440px] items-center justify-between border-b border-[rgba(0,103,71,0.16)] px-5 py-4 sm:px-8 xl:px-12">
+          <Link href="/" aria-label="Research Ambassadors home" className="flex items-center gap-3">
+            <Image src={logo} alt="The Research Ambassadors" className="h-14 w-14 rounded-full object-contain sm:h-16 sm:w-16" priority />
+            <span className="hidden leading-none sm:block">
+              <span className="block font-serif text-lg font-black tracking-tight text-[#006747]">The Research Ambassadors</span>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-[rgba(17,17,17,0.62)]">Find your research</span>
+            </span>
+          </Link>
+          <div className="hidden items-center gap-12 text-[15px] font-semibold text-[rgba(17,17,17,0.8)] xl:flex">
+            <Link href="/opportunities" className="transition hover:text-[#006747]">Explore opportunities</Link>
+            <Link href="/professor" className="transition hover:text-[#006747]">For PIs</Link>
+            <a href="#how-it-works" className="transition hover:text-[#006747]">How it works</a>
           </div>
           <div className="flex items-center gap-3 sm:gap-6">
             <Link href="/sign-in" className="hidden text-[15px] font-semibold sm:block">Sign in</Link>
-            <Link href="/sign-up" className="rounded-lg bg-[#b83e28] px-4 py-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(132,43,26,0.2)] transition hover:-translate-y-0.5 hover:bg-[#98301f] sm:px-6">Get started</Link>
+            <Link href="/sign-up" className="rounded-md border-2 border-[#006747] bg-[#006747] px-4 py-3 text-sm font-bold text-white shadow-[4px_4px_0_#418fde] transition hover:-translate-y-0.5 hover:bg-[#00513a] active:translate-y-0 active:bg-[#003b2a] sm:px-6">Get started</Link>
           </div>
         </nav>
 
         <section className="mx-auto grid max-w-[1440px] gap-12 px-5 pb-20 pt-14 sm:px-8 xl:grid-cols-[0.9fr_1.1fr] xl:px-12 xl:pb-24 xl:pt-24">
           <div className="relative z-10 max-w-2xl self-center">
-            <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-[#b83e28]">Find your research</p>
-            <h1 className="font-serif text-5xl font-black leading-[0.98] tracking-[-0.035em] text-[#211916] sm:text-6xl xl:text-7xl xl:text-[82px]">Find the research that moves you <span className="text-[#b83e28]">forward.</span></h1>
-            <p className="mt-7 max-w-xl text-lg leading-8 text-[#675b53] sm:text-xl">ResearchBridge connects curious students with faculty and research opportunities that spark growth, impact, and discovery.</p>
+            <p className="mb-5 flex items-center gap-3 text-xs font-black uppercase tracking-[0.22em] text-[#006747]"><span className="h-1 w-10 bg-[#418fde]" aria-hidden="true" />Find your research</p>
+            <h1 className="font-serif text-5xl font-black leading-[0.98] tracking-[-0.035em] text-[#111111] sm:text-6xl xl:text-7xl xl:text-[82px]">Find the research that moves you <span className="text-[#006747]">forward.</span></h1>
+            <p className="mt-7 max-w-xl text-lg leading-8 text-[rgba(17,17,17,0.7)] sm:text-xl">ResearchBridge connects curious students with faculty and research opportunities that spark growth, impact, and discovery.</p>
             <div className="mt-9 flex flex-col gap-4 sm:flex-row">
-              <Link href="/opportunities" className="rounded-lg bg-[#b83e28] px-7 py-4 text-center font-bold text-white shadow-[0_10px_22px_rgba(132,43,26,0.2)] transition hover:-translate-y-0.5 hover:bg-[#96301f]">Explore opportunities</Link>
-              <Link href="/professor/opportunities/new" className="rounded-lg border-2 border-[#251c18] px-7 py-4 text-center font-bold transition hover:bg-[#251c18] hover:text-white">Post an opportunity</Link>
+              <Link href="/opportunities" className="rounded-md border-2 border-[#006747] bg-[#006747] px-7 py-4 text-center font-bold text-white shadow-[5px_5px_0_#418fde] transition hover:-translate-y-0.5 hover:bg-[#00513a] active:translate-y-0 active:bg-[#003b2a]">Explore opportunities</Link>
+              <Link href="/professor/opportunities/new" className="rounded-md border-2 border-[#111111] bg-white px-7 py-4 text-center font-bold text-[#111111] transition hover:border-[#006747] hover:bg-[rgba(0,103,71,0.08)] hover:text-[#006747] active:bg-[rgba(0,103,71,0.16)]">Post an opportunity</Link>
             </div>
           </div>
 
-          <div className="relative xl:min-h-[560px]">
-            <svg viewBox="0 0 660 560" className="pointer-events-none absolute inset-0 hidden h-full w-full text-[#c9aa85] xl:block" fill="none" aria-hidden="true">
+          <div className="relative min-w-0 xl:min-h-[560px]">
+            <svg viewBox="0 0 660 560" className="pointer-events-none absolute inset-0 hidden h-full w-full text-[#418fde] xl:block" fill="none" aria-hidden="true">
               <path d="M372 91H466M371 92C322 92 297 130 297 184V244M297 306V360C297 403 333 429 382 429H468M466 91v98c0 45 33 63 82 63h31c43 0 61 31 61 67v54" stroke="currentColor" strokeWidth="1.5" />
-              <circle cx="372" cy="92" r="6" fill="#c44c2b" /><circle cx="297" cy="244" r="6" fill="#e79037" /><circle cx="382" cy="429" r="6" fill="#e79037" /><circle cx="548" cy="252" r="6" fill="#c44c2b" /><circle cx="609" cy="373" r="6" fill="#e79037" />
+              <circle cx="372" cy="92" r="6" fill="#006747" /><circle cx="297" cy="244" r="6" fill="#418fde" /><circle cx="382" cy="429" r="6" fill="#418fde" /><circle cx="548" cy="252" r="6" fill="#006747" /><circle cx="609" cy="373" r="6" fill="#418fde" />
             </svg>
-            <div className="relative space-y-5 xl:space-y-0">
+            <div className="relative space-y-5 xl:min-h-[560px] xl:space-y-0">
               {opportunities.map(({ icon: Icon, position, ...opportunity }) => (
-                <article key={opportunity.department} className={"group relative w-full rounded-[24px] border border-[#eadbca] bg-[#fffaf3]/95 p-6 shadow-[0_16px_34px_rgba(74,53,35,0.13)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(74,53,35,0.16)] sm:p-7 xl:absolute xl:w-[355px] " + position}>
-                  <div className="flex gap-5"><div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[#f9ecd9] text-[#bc4827]"><Icon className="h-11 w-11" /></div><div><h2 className="font-serif text-2xl font-bold tracking-tight">{opportunity.department}</h2><p className="mt-1 text-[15px] font-medium text-[#574941]">{opportunity.focus}</p><p className="mt-3 text-sm leading-5 text-[#6d6057]">{opportunity.description}</p><span className="mt-4 inline-flex rounded-md bg-[#fbe7cf] px-2.5 py-1 text-xs font-semibold text-[#c45a18]">{opportunity.tag}</span></div></div>
+                <article key={opportunity.department} className={"group relative w-full rounded-[24px] border border-[rgba(0,103,71,0.16)] bg-[#ffffff]/95 p-6 shadow-[0_16px_34px_rgba(17,17,17,0.10)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(17,17,17,0.14)] sm:p-7 xl:absolute xl:w-[355px] xl:max-w-full " + position}>
+                  <div className="flex gap-5"><div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[#e6f0ea] text-[#006747]"><Icon className="h-11 w-11" /></div><div><h2 className="font-serif text-2xl font-bold tracking-tight">{opportunity.department}</h2><p className="mt-1 text-[15px] font-medium text-[rgba(17,17,17,0.8)]">{opportunity.focus}</p><p className="mt-3 text-sm leading-5 text-[rgba(17,17,17,0.7)]">{opportunity.description}</p><span className="mt-4 inline-flex rounded-md bg-[#e4effb] px-2.5 py-1 text-xs font-semibold text-[#006747]">{opportunity.tag}</span></div></div>
                 </article>
               ))}
             </div>
@@ -102,18 +109,18 @@ export default function Home() {
         </section>
 
         <section className="mx-auto max-w-[1400px] px-5 pb-20 sm:px-8 xl:px-12">
-          <div className="grid overflow-hidden rounded-[22px] border border-[#eadcc9] bg-[#f3e5d1]/85 md:grid-cols-[1.7fr_1fr_1fr_1fr]">
-            <div className="flex items-center gap-5 border-b border-[#e2cfb9] px-7 py-7 md:border-b-0 md:border-r"><div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#f9eddb] text-[#c35b1d]"><UniversityIcon className="h-8 w-8" /></div><p className="font-serif text-xl font-bold leading-snug">Built for students, faculty, and research labs.</p></div>
-            {featureItems.map(({ icon: Icon, text }, index) => <div key={text} className={"flex items-center gap-4 px-6 py-7 " + (index < 2 ? "border-b border-[#e2cfb9] md:border-b-0 md:border-r" : "")}><Icon className="h-8 w-8 shrink-0 text-[#d97923]" /><p className="text-sm leading-5 text-[#5d5048]">{text}</p></div>)}
+          <div className="grid overflow-hidden rounded-[22px] border border-[rgba(0,103,71,0.16)] bg-[#e6f0ea]/85 md:grid-cols-[1.7fr_1fr_1fr_1fr]">
+            <div className="flex items-center gap-5 border-b border-[rgba(0,103,71,0.22)] px-7 py-7 md:border-b-0 md:border-r"><div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#ffffff] text-[#006747]"><UniversityIcon className="h-8 w-8" /></div><p className="font-serif text-xl font-bold leading-snug">Built for students, faculty, and research labs.</p></div>
+            {featureItems.map(({ icon: Icon, text }, index) => <div key={text} className={"flex items-center gap-4 px-6 py-7 " + (index < 2 ? "border-b border-[rgba(0,103,71,0.22)] md:border-b-0 md:border-r" : "")}><Icon className="h-8 w-8 shrink-0 text-[#006747]" /><p className="text-sm leading-5 text-[rgba(17,17,17,0.8)]">{text}</p></div>)}
           </div>
         </section>
       </div>
 
-      <section id="how-it-works" className="bg-[#fff8ee] px-5 py-20 sm:px-8 xl:px-12">
+      <section id="how-it-works" className="bg-[#e6f0ea] px-5 py-20 sm:px-8 xl:px-12">
         <div className="mx-auto max-w-[1240px]">
-          <div className="text-center"><p className="text-xs font-bold uppercase tracking-[0.22em] text-[#b83e28]">How it works</p><h2 className="mt-4 font-serif text-4xl font-black tracking-tight sm:text-5xl">From <span className="text-[#b83e28]">curiosity</span> to contribution.</h2><div className="mx-auto mt-5 flex items-center justify-center gap-2 text-[#d77425]"><span className="h-px w-20 bg-[#dfc6aa]" /><span className="h-2 w-2 rounded-full bg-current" /><span className="h-2 w-2 rounded-full bg-current" /><span className="h-2 w-2 rounded-full bg-current" /><span className="h-px w-20 bg-[#dfc6aa]" /></div></div>
+          <div className="text-center"><p className="text-xs font-bold uppercase tracking-[0.22em] text-[#006747]">How it works</p><h2 className="mt-4 font-serif text-4xl font-black tracking-tight sm:text-5xl">From <span className="text-[#006747]">curiosity</span> to contribution.</h2><div className="mx-auto mt-5 flex items-center justify-center gap-2 text-[#418fde]"><span className="h-px w-20 bg-[rgba(0,103,71,0.25)]" /><span className="h-2 w-2 rounded-full bg-current" /><span className="h-2 w-2 rounded-full bg-current" /><span className="h-2 w-2 rounded-full bg-current" /><span className="h-px w-20 bg-[rgba(0,103,71,0.25)]" /></div></div>
           <div className="mt-14 grid gap-8 md:grid-cols-3 md:gap-0">
-            {steps.map(({ icon: Icon, ...step }, index) => <article key={step.number} className="relative flex gap-5 px-2 md:px-8">{index < steps.length - 1 && <div className="absolute right-0 top-10 hidden h-px w-12 bg-[#dfc6aa] md:block" />}<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#b83e28] text-lg font-bold text-white">{step.number}</span><div><div className="flex items-center gap-3"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f9eddb] text-[#211916]"><Icon className="h-8 w-8" /></span><h3 className="font-serif text-2xl font-bold">{step.title}</h3></div><p className="mt-4 max-w-xs text-sm leading-6 text-[#675b53]">{step.description}</p></div></article>)}
+            {steps.map(({ icon: Icon, ...step }, index) => <article key={step.number} className="relative flex gap-5 px-2 md:px-8">{index < steps.length - 1 && <div className="absolute right-0 top-10 hidden h-px w-12 bg-[rgba(0,103,71,0.25)] md:block" />}<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#006747] text-lg font-bold text-white">{step.number}</span><div><div className="flex items-center gap-3"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#ffffff] text-[#111111]"><Icon className="h-8 w-8" /></span><h3 className="font-serif text-2xl font-bold">{step.title}</h3></div><p className="mt-4 max-w-xs text-sm leading-6 text-[rgba(17,17,17,0.7)]">{step.description}</p></div></article>)}
           </div>
         </div>
       </section>
