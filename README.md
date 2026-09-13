@@ -75,9 +75,11 @@ Feature branch → Pull request checks → Teammate review → Merge to main →
 - If production breaks, redeploy the last known-good deployment while the issue is investigated.
 
 # Deadlines: 
-**September 20**: A professor can create an opportunity and a student can browse it.
-**October 4**: the entire student-to-professor workflow operates end to end.
-**October 18**: the product contains real, reviewed Tulane data and is being tested by actual users.
-**November 1**: a polished, measurable product—not merely a technical prototype.
-**November 5**: presentation-ready release candidate.
-**November 11**: Present at NOAI!
+- **September 20**: A professor can create an opportunity and a student can browse it.
+- **October 4**: the entire student-to-professor workflow operates end to end.
+- **October 12**: Pitch Friday + Apply to 1834 VC
+- **October 18**: the product contains real, reviewed Tulane data and is
+being tested by actual users.
+- **November 1**: a polished, measurable product—not merely a technical prototype.
+- **November 5**: presentation-ready release candidate.
+- **November 11**: Present at NOAI!

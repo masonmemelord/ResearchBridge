@@ -24,3 +24,13 @@ Please include:
     - Only showing **published** opportunities
 
 `learning Github for collaborations has been fun`
+
+## Sep 13
+**Changes Made**
+1. Updated UI across site
+**Future Changes**
+1. Humanize language
+2. Set up Auth routing for PI's via Sign In/Get Started
+3. Link Auth and Supabase persistence to repsective PI
+4. Build Student facing page:
+
