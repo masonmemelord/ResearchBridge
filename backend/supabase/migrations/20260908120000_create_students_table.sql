@@ -6,8 +6,8 @@ create table students (
   name text not null,
   email text unique not null,
   department text not null,
-  major text not null, 
-  university text default 'Tulane University'
+  major text not null,
+  university text default 'Tulane University',
 
   created_at timestamptz not null default now()
 
@@ -33,6 +33,6 @@ create policy "Students can insert their own row"
 create policy "Students can update their own row"
   on students
   for update
-  using ( auth.uid() = id );
+  using ( auth.uid() = id )
   with check ( auth.uid() = id );
 

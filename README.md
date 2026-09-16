@@ -74,6 +74,39 @@ Feature branch → Pull request checks → Teammate review → Merge to main →
 - Use preview deployments to review substantial UI changes before merging.
 - If production breaks, redeploy the last known-good deployment while the issue is investigated.
 
+## Database Setup
+
+The schema (enums, `profiles`, `departments`, `opportunities`, constraints, indexes, triggers, and RLS policies) lives in `backend/supabase/migrations/`. Department seed data lives in `backend/supabase/seed.sql`.
+
+**Environment variables** (put these in `backend/supabase/.env.local`, which is gitignored):
+
+- `SUPABASE_URL` — your project's API URL (`http://127.0.0.1:54321` for local dev).
+- `SUPABASE_ANON_KEY` — public key used by the frontend/browser.
+- `SUPABASE_SERVICE_ROLE_KEY` — secret key for trusted server-side code only; it bypasses RLS, so never expose it to the browser.
+- `SUPABASE_DB_URL` — Postgres connection string, needed for running raw SQL (e.g. the verification script) against the database directly.
+
+For a local Supabase CLI project, run `supabase status` after starting the stack to print the local values for these.
+
+**Applying migrations:**
+
+```bash
+# Local development (requires Docker):
+supabase start          # boots the local stack
+supabase db reset       # (re)applies all migrations + seed.sql from scratch
+
+# Against a hosted/linked project:
+supabase link --project-ref <your-project-ref>
+supabase db push        # applies any migrations not yet on the remote database
+```
+
+**Verifying the RLS policies and constraints:** `backend/supabase/tests/verify_opportunities_rls.sql` proves the required access rules (a professor can create/manage only their own opportunities, another professor cannot modify them, a student can browse published opportunities but not drafts, and invalid duration/position values are rejected). It runs in a transaction that's rolled back at the end, so it's safe to run repeatedly:
+
+```bash
+psql "$SUPABASE_DB_URL" -f backend/supabase/tests/verify_opportunities_rls.sql
+```
+
+A clean run prints a `PASS` notice for each of the five proofs and ends with `ROLLBACK`.
+
 # Deadlines: 
 - **September 20**: A professor can create an opportunity and a student can browse it.
 - **October 4**: the entire student-to-professor workflow operates end to end.
