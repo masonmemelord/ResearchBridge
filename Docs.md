@@ -40,9 +40,18 @@ Please include:
 2. Added department seed data (`backend/supabase/seed.sql`)
 3. Added RLS verification test (`backend/supabase/tests/verify_opportunities_rls.sql`) proving professor-owns-opportunity, student-sees-published-only, and constraint checks
 
+## Sep 19
+**Changes Made:**
+- Fixed Supabase Postgres issues (Session based)
+- Merged Docker into project
+- Added RLS
+- Added Supabase/js and browser client
+- Connected frontend to Supabase
+- Added Sign in/out pages
+- Added Student browse page
 
 **Future Changes**
-1. Link Auth and Supabase persistence to the opportunities schema
-2. Build Student facing page (opportunity cards, dept/duration/class-year filters, published-only)
-3. Run migrations + RLS test against a live local Supabase stack (Docker) before merging
+1. Transfer back to transaction pooler 
+2. Test RLS
+3. Integrate Sign-in/out auth specifications
 
