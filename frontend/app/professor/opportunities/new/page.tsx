@@ -2,27 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import {
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { getSupabaseBrowserClient } from "../../../../lib/supabase/client";
 import logo from "../../../TRALogo.png";
 
 /* -------------------------------------------------------------------------- */
 /* Domain types and reference data                                            */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Version of the stored record shape. Bump it whenever stored fields change so
- * older localStorage entries can be told apart and migrated.
- */
-const OPPORTUNITY_SCHEMA_VERSION = 2;
-
 type Opportunity = {
-  schemaVersion: typeof OPPORTUNITY_SCHEMA_VERSION;
   id: string;
   title: string;
   description: string;
@@ -44,6 +32,12 @@ type Opportunity = {
 type School = Opportunity["school"];
 type ClassYear = Opportunity["eligibleClassYears"][number];
 type DurationSemesters = Opportunity["durationSemesters"];
+type DatabaseSchool =
+  | "architecture"
+  | "liberal_arts"
+  | "public_health"
+  | "science_and_engineering";
+type DatabaseClassYear = "freshman" | "sophomore" | "junior" | "senior";
 
 const SCHOOLS: readonly School[] = [
   "Architecture",
@@ -82,6 +76,20 @@ const KEYWORD_MAX_LENGTH = 30;
 const POSITIONS_MIN = 1;
 const POSITIONS_MAX = 20;
 
+const SCHOOL_TO_DATABASE: Record<School, DatabaseSchool> = {
+  Architecture: "architecture",
+  "Liberal Arts": "liberal_arts",
+  "Public Health": "public_health",
+  "Science and Engineering": "science_and_engineering",
+};
+
+const CLASS_YEAR_TO_DATABASE: Record<ClassYear, DatabaseClassYear> = {
+  Freshman: "freshman",
+  Sophomore: "sophomore",
+  Junior: "junior",
+  Senior: "senior",
+};
+
 function isSchool(value: string): value is School {
   return (SCHOOLS as readonly string[]).includes(value);
 }
@@ -101,167 +109,6 @@ function parseCommaSeparatedList(value: string): string[] {
     result.push(item);
   }
   return result;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Prototype persistence                                                      */
-/* -------------------------------------------------------------------------- */
-
-const STORAGE_KEY = "researchbridge-opportunities"; //Write logic
-
-/*
- * Temporary prototype storage. Every call happens in the browser only (event
- * handlers and the external-store snapshot below), never during server
- * rendering, and is expected to be replaced by a real data layer.
- *
- * Stored entries are never rewritten. An entry is one of:
- * - current: `schemaVersion: 2` and a fully valid Opportunity.
- * - legacy:  an object without `schemaVersion` (saved before school, majors and
- *            keywords existed). Kept verbatim; missing fields are not invented.
- *            These need a migration before moving to database persistence.
- * - invalid: anything else (non-objects, unknown versions, broken v2 records).
- */
-
-type StoredEntryKind = "current" | "legacy" | "invalid";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
-function isCurrentOpportunity(value: unknown): value is Opportunity {
-  if (!isRecord(value) || value.schemaVersion !== OPPORTUNITY_SCHEMA_VERSION) return false;
-  const years = value.eligibleClassYears;
-  return (
-    typeof value.id === "string" &&
-    typeof value.title === "string" &&
-    typeof value.description === "string" &&
-    typeof value.school === "string" &&
-    isSchool(value.school) &&
-    typeof value.department === "string" &&
-    isStringArray(value.preferredMajors) &&
-    isStringArray(value.keywords) &&
-    DURATIONS.some((duration) => duration.value === value.durationSemesters) &&
-    isStringArray(years) &&
-    years.every((year) => (CLASS_YEARS as readonly string[]).includes(year)) &&
-    typeof value.positionsAvailable === "number" &&
-    Number.isInteger(value.positionsAvailable) &&
-    (value.status === "draft" || value.status === "published") &&
-    typeof value.createdAt === "string"
-  );
-}
-
-function classifyStoredEntry(entry: unknown): StoredEntryKind {
-  if (!isRecord(entry)) return "invalid";
-  if (!("schemaVersion" in entry)) return "legacy";
-  return isCurrentOpportunity(entry) ? "current" : "invalid";
-}
-
-/** Thrown instead of writing when the stored value exists but is not a JSON array. */
-class UnreadableStoredDataError extends Error {}
-
-/** Parses the raw stored value. `null` means data exists but cannot be read as an array. */
-function parseStoredEntries(raw: string | null): unknown[] | null {
-  if (raw === null) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Appends without touching anything already saved and returns the new total.
- * Throws if storage is unavailable, or UnreadableStoredDataError if the existing
- * value would otherwise be overwritten.
- */
-function appendStoredOpportunity(opportunity: Opportunity): number {
-  const existing = parseStoredEntries(window.localStorage.getItem(STORAGE_KEY));
-  if (existing === null) throw new UnreadableStoredDataError();
-  const next = [...existing, opportunity];
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  notifyStoredOpportunitiesChanged();
-  return next.length;
-}
-
-/**
- * localStorage is an external store, so it is read through useSyncExternalStore
- * rather than an effect. The server snapshot is `null` so nothing is read during
- * server rendering or hydration.
- */
-const storageListeners = new Set<() => void>();
-
-function notifyStoredOpportunitiesChanged() {
-  for (const listener of storageListeners) listener();
-}
-
-function subscribeToStoredOpportunities(onChange: () => void) {
-  storageListeners.add(onChange);
-  window.addEventListener("storage", onChange);
-  return () => {
-    storageListeners.delete(onChange);
-    window.removeEventListener("storage", onChange);
-  };
-}
-
-type StorageSummary = {
-  /** The stored value exists but is not a readable JSON array. */
-  unreadable: boolean;
-  total: number;
-  current: number;
-  legacy: number;
-  invalid: number;
-};
-
-const EMPTY_SUMMARY: StorageSummary = {
-  unreadable: false,
-  total: 0,
-  current: 0,
-  legacy: 0,
-  invalid: 0,
-};
-
-function summarizeStoredEntries(raw: string | null): StorageSummary {
-  const entries = parseStoredEntries(raw);
-  if (entries === null) return { ...EMPTY_SUMMARY, unreadable: true };
-  const summary = { ...EMPTY_SUMMARY, total: entries.length };
-  for (const entry of entries) summary[classifyStoredEntry(entry)] += 1;
-  return summary;
-}
-
-// useSyncExternalStore requires a stable snapshot, so the summary is cached by raw value.
-let cachedRaw: string | null | undefined;
-let cachedSummary: StorageSummary = EMPTY_SUMMARY;
-
-function getStorageSummary(): StorageSummary | null {
-  let raw: string | null;
-  try {
-    raw = window.localStorage.getItem(STORAGE_KEY);
-  } catch {
-    // Storage is blocked; saving reports its own error.
-    return EMPTY_SUMMARY;
-  }
-  if (raw !== cachedRaw) {
-    cachedRaw = raw;
-    cachedSummary = summarizeStoredEntries(raw);
-  }
-  return cachedSummary;
-}
-
-function getServerStorageSummary(): StorageSummary | null {
-  return null;
-}
-
-function useStorageSummary(): StorageSummary | null {
-  return useSyncExternalStore(
-    subscribeToStoredOpportunities,
-    getStorageSummary,
-    getServerStorageSummary,
-  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -561,14 +408,14 @@ function TagList({ items, label }: { items: readonly string[]; label: string }) 
 /* Page                                                                       */
 /* -------------------------------------------------------------------------- */
 
-type SaveResult = { opportunity: Opportunity; total: number };
+type SaveResult = { opportunity: Opportunity };
 
 export default function NewOpportunityPage() {
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
   const [showErrors, setShowErrors] = useState(false);
-  const [storageError, setStorageError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState<SaveResult | null>(null);
-  const storage = useStorageSummary();
 
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -602,10 +449,10 @@ export default function NewOpportunityPage() {
     document.getElementById(FIELD_FOCUS_IDS[field])?.focus();
   }
 
-  function save(status: Opportunity["status"]) {
+  async function save(status: Opportunity["status"]) {
     const nextErrors = validate(values);
     setShowErrors(true);
-    setStorageError(null);
+    setSaveError(null);
 
     const firstInvalid = FIELD_ORDER.find((field) => nextErrors[field]);
     // The isSchool check also narrows the type for the object below.
@@ -614,9 +461,7 @@ export default function NewOpportunityPage() {
       return;
     }
 
-    const opportunity: Opportunity = {
-      schemaVersion: OPPORTUNITY_SCHEMA_VERSION,
-      id: crypto.randomUUID(),
+    const opportunityInput: Omit<Opportunity, "id" | "createdAt"> = {
       title: values.title.trim(),
       description: values.description.trim(),
       school: values.school,
@@ -627,25 +472,81 @@ export default function NewOpportunityPage() {
       eligibleClassYears: values.classYears,
       positionsAvailable: Number(values.positions),
       status,
-      createdAt: new Date().toISOString(),
     };
 
+    setIsSaving(true);
     try {
-      const total = appendStoredOpportunity(opportunity);
-      setSaved({ opportunity, total });
+      const supabase = getSupabaseBrowserClient();
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !authData.user) {
+        setSaveError("Sign in with a professor account before saving an opportunity.");
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", authData.user.id)
+        .single();
+
+      if (profileError || profile?.role !== "professor") {
+        setSaveError(
+          "This account does not have a professor profile. Ask an administrator to verify the account role.",
+        );
+        return;
+      }
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("opportunities")
+        .insert({
+          professor_id: authData.user.id,
+          school: SCHOOL_TO_DATABASE[opportunityInput.school],
+          department: opportunityInput.department,
+          preferred_majors: opportunityInput.preferredMajors,
+          keywords: opportunityInput.keywords,
+          duration_semesters: opportunityInput.durationSemesters,
+          eligible_class_years: opportunityInput.eligibleClassYears.map(
+            (year) => CLASS_YEAR_TO_DATABASE[year],
+          ),
+          positions_available: opportunityInput.positionsAvailable,
+          title: opportunityInput.title,
+          description: opportunityInput.description,
+          status: opportunityInput.status,
+        })
+        .select("id, created_at")
+        .single();
+
+      if (insertError || !inserted) {
+        console.error("Supabase opportunity insert failed", insertError);
+        setSaveError(
+          insertError?.code === "42501"
+            ? "Supabase denied this save. Confirm that you are signed in as the professor who owns the opportunity."
+            : "The opportunity could not be saved to Supabase. Your form entries are still here; check the connection and try again.",
+        );
+        return;
+      }
+
+      const opportunity: Opportunity = {
+        ...opportunityInput,
+        id: inserted.id,
+        createdAt: inserted.created_at,
+      };
+      setSaved({ opportunity });
     } catch (error) {
-      setStorageError(
-        error instanceof UnreadableStoredDataError
-          ? "Opportunities already saved in this browser could not be read, so nothing was saved to avoid overwriting them. Your form entries are still here."
-          : "This browser blocked local storage, so the opportunity could not be saved. Check your privacy settings and try again.",
+      console.error("Supabase is not configured", error);
+      setSaveError(
+        "Supabase is not configured for this frontend. Check the public URL and anon-key environment variables.",
       );
+    } finally {
+      setIsSaving(false);
     }
   }
 
   function resetForm() {
     setValues(EMPTY_FORM);
     setShowErrors(false);
-    setStorageError(null);
+    setSaveError(null);
     setSaved(null);
   }
 
@@ -666,12 +567,20 @@ export default function NewOpportunityPage() {
             <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.18em] text-rb-muted">Professor portal</span>
           </span>
         </Link>
-        <Link
-          href="/"
-          className="rounded-lg px-2 py-1 text-sm font-semibold text-rb-muted transition hover:text-rb-brand"
-        >
-          Back to home
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/sign-in"
+            className="rounded-lg px-2 py-1 text-sm font-semibold text-rb-brand transition hover:text-rb-brand-hover"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/"
+            className="rounded-lg px-2 py-1 text-sm font-semibold text-rb-muted transition hover:text-rb-brand"
+          >
+            Back to home
+          </Link>
+        </div>
       </nav>
 
       <div className="mx-auto max-w-[900px] px-5 sm:px-8">
@@ -717,26 +626,9 @@ export default function NewOpportunityPage() {
               the opportunity through search.
             </li>
           </ul>
-          {storage?.unreadable ? (
-            <p className="mt-4 flex items-start gap-2 text-sm font-semibold text-[#8f2d1c]">
-              <WarningIcon className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>
-                Saved opportunity data in this browser could not be read. It has been left
-                untouched, and new opportunities cannot be saved until it is repaired.
-              </span>
-            </p>
-          ) : storage && storage.total > 0 ? (
-            <p className="mt-4 text-sm text-rb-muted">
-              {storage.total} {storage.total === 1 ? "opportunity" : "opportunities"} already
-              saved in this browser.
-              {storage.legacy > 0
-                ? ` ${storage.legacy} ${storage.legacy === 1 ? "uses" : "use"} an older format without school, majors, or keywords and will need migration.`
-                : null}
-              {storage.invalid > 0
-                ? ` ${storage.invalid} could not be recognized and ${storage.invalid === 1 ? "was" : "were"} left as-is.`
-                : null}
-            </p>
-          ) : null}
+          <p className="mt-4 text-sm text-rb-muted">
+            Opportunities are saved to Supabase under your authenticated professor account.
+          </p>
         </header>
 
         {/* Live region is always mounted so the confirmation is announced when it appears. */}
@@ -759,10 +651,8 @@ export default function NewOpportunityPage() {
                   </h2>
                   <p className="mt-2 max-w-xl text-[15px] leading-6 text-rb-muted">
                     {saved.opportunity.status === "published"
-                      ? "This opportunity is marked as published, so it is ready for students to discover."
-                      : "This opportunity is saved as a draft. It is not visible to students until you publish it."}{" "}
-                    Prototype note: it is stored only in this browser, and {saved.total}{" "}
-                    {saved.total === 1 ? "opportunity is" : "opportunities are"} saved so far.
+                      ? "This opportunity is saved in Supabase and is ready for students to discover."
+                      : "This opportunity is saved in Supabase as a private draft. Students cannot see it until you publish it."}
                   </p>
                 </div>
               </div>
@@ -868,8 +758,9 @@ export default function NewOpportunityPage() {
             noValidate
             onSubmit={(event) => {
               event.preventDefault();
-              save("published");
+              void save("published");
             }}
+            aria-busy={isSaving}
             className="mt-8 rounded-[24px] border border-rb-border bg-rb-card p-6 shadow-[0_16px_34px_rgba(17,17,17,0.10)] sm:p-8"
           >
             {errorList.length > 0 ? (
@@ -1194,33 +1085,35 @@ export default function NewOpportunityPage() {
               </div>
             </div>
 
-            {storageError ? (
+            {saveError ? (
               <p
                 role="alert"
                 className="mt-7 flex items-start gap-2 rounded-2xl border border-[#e0b3a7] bg-[#fdf1ed] p-4 text-[13px] font-semibold leading-5 text-[#8f2d1c]"
               >
                 <WarningIcon className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{storageError}</span>
+                <span>{saveError}</span>
               </p>
             ) : null}
 
             <div className="mt-9 flex flex-col gap-3 border-t border-rb-border pt-7 sm:flex-row sm:items-center">
               <button
                 type="submit"
-                className="rounded-lg bg-rb-brand px-7 py-4 text-center font-bold text-white shadow-[0_10px_22px_rgba(0,103,71,0.2)] transition hover:-translate-y-0.5 hover:bg-rb-brand-hover active:bg-rb-brand-active sm:order-2"
+                disabled={isSaving}
+                className="rounded-lg bg-rb-brand px-7 py-4 text-center font-bold text-white shadow-[0_10px_22px_rgba(0,103,71,0.2)] transition hover:-translate-y-0.5 hover:bg-rb-brand-hover active:bg-rb-brand-active disabled:cursor-wait disabled:opacity-60 sm:order-2"
               >
-                Publish opportunity
+                {isSaving ? "Saving…" : "Publish opportunity"}
               </button>
               <button
                 type="button"
-                onClick={() => save("draft")}
-                className="rounded-lg border-2 border-rb-brand px-7 py-4 text-center font-bold text-rb-ink transition hover:bg-[rgba(0,103,71,0.08)] hover:text-rb-brand active:bg-[rgba(0,103,71,0.16)] sm:order-1"
+                disabled={isSaving}
+                onClick={() => void save("draft")}
+                className="rounded-lg border-2 border-rb-brand px-7 py-4 text-center font-bold text-rb-ink transition hover:bg-[rgba(0,103,71,0.08)] hover:text-rb-brand active:bg-[rgba(0,103,71,0.16)] disabled:cursor-wait disabled:opacity-60 sm:order-1"
               >
-                Save draft
+                {isSaving ? "Saving…" : "Save draft"}
               </button>
               <p className="text-[13px] leading-5 text-rb-muted sm:order-3 sm:ml-2">
                 Drafts stay private to you. Publishing makes the opportunity visible to
-                students. Both are stored in this browser only for now.
+                students. Both are stored in Supabase and protected by row-level security.
               </p>
             </div>
           </form>

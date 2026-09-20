@@ -78,7 +78,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3 sm:gap-6">
             <Link href="/sign-in" className="hidden text-[15px] font-semibold sm:block">Sign in</Link>
-            <Link href="/sign-up" className="rounded-md border-2 border-[#006747] bg-[#006747] px-4 py-3 text-sm font-bold text-white shadow-[4px_4px_0_#418fde] transition hover:-translate-y-0.5 hover:bg-[#00513a] active:translate-y-0 active:bg-[#003b2a] sm:px-6">Get started</Link>
+            <Link href="/sign-in" className="rounded-md border-2 border-[#006747] bg-[#006747] px-4 py-3 text-sm font-bold text-white shadow-[4px_4px_0_#418fde] transition hover:-translate-y-0.5 hover:bg-[#00513a] active:translate-y-0 active:bg-[#003b2a] sm:px-6">Get started</Link>
           </div>
         </nav>
 
@@ -127,4 +127,3 @@ export default function Home() {
     </main>
   );
 }
-
