@@ -1,11 +1,46 @@
 "use client";
 
+import {
+  isAuthApiError,
+  isAuthRetryableFetchError,
+  type AuthError,
+  type SupabaseClient,
+} from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { AUTH_MESSAGES, ROLE_HOME, fetchProfileRole } from "../../lib/auth/profile";
 import { getSupabaseBrowserClient } from "../../lib/supabase/client";
 import logo from "../TRALogo.png";
+
+function signInErrorMessage(error: AuthError): string {
+  if (isAuthRetryableFetchError(error)) {
+    return "We could not reach the sign-in service. Check your internet connection and try again.";
+  }
+  if (error.code === "email_not_confirmed") {
+    return "This email address has not been confirmed yet. Use the confirmation link sent to your inbox, then sign in again.";
+  }
+  if (error.code === "over_request_rate_limit" || (isAuthApiError(error) && error.status === 429)) {
+    return "Too many sign-in attempts. Wait a minute, then try again.";
+  }
+  if (error.code === "invalid_credentials" || (isAuthApiError(error) && error.status === 400)) {
+    return "The email or password was not accepted. Check both fields and try again.";
+  }
+  return "Sign-in did not complete. Try again, and contact the ResearchBridge team if it keeps happening.";
+}
+
+/**
+ * Removes an incomplete session from this browser. Local scope clears stored
+ * tokens even when Supabase cannot be reached.
+ */
+async function discardSession(supabase: SupabaseClient) {
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch (signOutError) {
+    console.error("Could not clear the incomplete session", signOutError);
+  }
+}
 
 export default function SignInPage() {
   const router = useRouter();
@@ -18,28 +53,48 @@ export default function SignInPage() {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
+    let redirecting = false;
 
     try {
       const supabase = getSupabaseBrowserClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
-      if (signInError) {
-        setError("The email or password was not accepted. Check both fields and try again.");
+      if (signInError || !data.user) {
+        if (signInError) console.warn("Supabase sign-in was rejected", signInError.code);
+        setError(
+          signInError
+            ? signInErrorMessage(signInError)
+            : "Sign-in did not complete. Try again, and contact the ResearchBridge team if it keeps happening.",
+        );
         return;
       }
 
-      router.replace("/professor/opportunities/new");
-      router.refresh();
+      // The destination comes only from the user's own profiles row, never from input.
+      const profile = await fetchProfileRole(supabase, data.user.id);
+      if (profile.kind === "role") {
+        redirecting = true;
+        router.replace(ROLE_HOME[profile.role]);
+        return;
+      }
+
+      await discardSession(supabase);
+      if (profile.kind === "error") console.error("Profile lookup failed", profile.error);
+      setError(
+        profile.kind === "missing"
+          ? AUTH_MESSAGES.missingProfile
+          : profile.kind === "unsupported-role"
+            ? AUTH_MESSAGES.unsupportedRole(profile.role)
+            : AUTH_MESSAGES.profileUnavailable,
+      );
     } catch (configurationError) {
       console.error("Supabase sign-in is not configured", configurationError);
-      setError(
-        "Supabase is not configured for this frontend. Check the public URL and anon-key environment variables.",
-      );
+      setError(AUTH_MESSAGES.notConfigured);
     } finally {
-      setIsSubmitting(false);
+      // Stay busy while navigating so the form cannot be submitted twice.
+      if (!redirecting) setIsSubmitting(false);
     }
   }
 

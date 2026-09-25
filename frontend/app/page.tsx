@@ -1,5 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AuthNav } from "../components/auth/AuthNav";
+import { HiddenForStudents } from "../components/auth/HiddenForStudents";
 import logo from "./TRALogo.png";
 
 type IconProps = { className?: string };
@@ -73,13 +75,10 @@ export default function Home() {
           </Link>
           <div className="hidden items-center gap-12 text-[15px] font-semibold text-[rgba(17,17,17,0.8)] xl:flex">
             <Link href="/opportunities" className="transition hover:text-[#006747]">Explore opportunities</Link>
-            <Link href="/professor" className="transition hover:text-[#006747]">For PIs</Link>
+            <Link href="/professor/opportunities/new" className="transition hover:text-[#006747]">For PIs</Link>
             <a href="#how-it-works" className="transition hover:text-[#006747]">How it works</a>
           </div>
-          <div className="flex items-center gap-3 sm:gap-6">
-            <Link href="/sign-in" className="hidden text-[15px] font-semibold sm:block">Sign in</Link>
-            <Link href="/sign-in" className="rounded-md border-2 border-[#006747] bg-[#006747] px-4 py-3 text-sm font-bold text-white shadow-[4px_4px_0_#418fde] transition hover:-translate-y-0.5 hover:bg-[#00513a] active:translate-y-0 active:bg-[#003b2a] sm:px-6">Get started</Link>
-          </div>
+          <AuthNav variant="home" />
         </nav>
 
         <section className="mx-auto grid max-w-[1440px] gap-12 px-5 pb-20 pt-14 sm:px-8 xl:grid-cols-[0.9fr_1.1fr] xl:px-12 xl:pb-24 xl:pt-24">
@@ -89,7 +88,7 @@ export default function Home() {
             <p className="mt-7 max-w-xl text-lg leading-8 text-[rgba(17,17,17,0.7)] sm:text-xl">ResearchBridge connects curious students with faculty and research opportunities that spark growth, impact, and discovery.</p>
             <div className="mt-9 flex flex-col gap-4 sm:flex-row">
               <Link href="/opportunities" className="rounded-md border-2 border-[#006747] bg-[#006747] px-7 py-4 text-center font-bold text-white shadow-[5px_5px_0_#418fde] transition hover:-translate-y-0.5 hover:bg-[#00513a] active:translate-y-0 active:bg-[#003b2a]">Explore opportunities</Link>
-              <Link href="/professor/opportunities/new" className="rounded-md border-2 border-[#111111] bg-white px-7 py-4 text-center font-bold text-[#111111] transition hover:border-[#006747] hover:bg-[rgba(0,103,71,0.08)] hover:text-[#006747] active:bg-[rgba(0,103,71,0.16)]">Post an opportunity</Link>
+              <HiddenForStudents><Link href="/professor/opportunities/new" className="rounded-md border-2 border-[#111111] bg-white px-7 py-4 text-center font-bold text-[#111111] transition hover:border-[#006747] hover:bg-[rgba(0,103,71,0.08)] hover:text-[#006747] active:bg-[rgba(0,103,71,0.16)]">Post an opportunity</Link></HiddenForStudents>
             </div>
           </div>
 

@@ -2,7 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AuthNav } from "../../../../components/auth/AuthNav";
+import { ProfessorGate } from "../../../../components/auth/ProfessorGate";
+import { fetchProfileRole } from "../../../../lib/auth/profile";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/client";
 import logo from "../../../TRALogo.png";
 
@@ -410,7 +414,45 @@ function TagList({ items, label }: { items: readonly string[]; label: string }) 
 
 type SaveResult = { opportunity: Opportunity };
 
+const NETWORK_SAVE_ERROR =
+  "The opportunity could not be saved to Supabase. Your form entries are still here; check your internet connection and try again.";
+
 export default function NewOpportunityPage() {
+  return (
+    <main className="paper-texture min-h-screen pb-20">
+      <div className="h-1.5 bg-[linear-gradient(90deg,#006747_0_72%,#418fde_72%_100%)]" aria-hidden="true" />
+      <nav
+        aria-label="Main"
+        className="mx-auto flex max-w-[900px] flex-wrap items-center justify-between gap-4 border-b border-rb-border px-5 py-4 sm:px-8"
+      >
+        <Link href="/" aria-label="Research Ambassadors home" className="flex items-center gap-3">
+          <Image src={logo} alt="The Research Ambassadors" className="h-14 w-14 rounded-full object-contain" priority />
+          <span className="hidden leading-none sm:block">
+            <span className="block font-serif text-base font-black tracking-tight text-rb-brand">Research Ambassadors</span>
+            <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.18em] text-rb-muted">Professor portal</span>
+          </span>
+        </Link>
+        <div className="flex items-center gap-4">
+          <AuthNav />
+          <Link
+            href="/"
+            className="rounded-lg px-2 py-1 text-sm font-semibold text-rb-muted transition hover:text-rb-brand"
+          >
+            Back to home
+          </Link>
+        </div>
+      </nav>
+
+      <div className="mx-auto max-w-[900px] px-5 sm:px-8">
+        <ProfessorGate>
+          <NewOpportunityWorkspace />
+        </ProfessorGate>
+      </div>
+    </main>
+  );
+}
+
+function NewOpportunityWorkspace() {
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
   const [showErrors, setShowErrors] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -479,20 +521,27 @@ export default function NewOpportunityPage() {
       const supabase = getSupabaseBrowserClient();
       const { data: authData, error: authError } = await supabase.auth.getUser();
 
+      if (authError && isAuthRetryableFetchError(authError)) {
+        setSaveError(NETWORK_SAVE_ERROR);
+        return;
+      }
       if (authError || !authData.user) {
-        setSaveError("Sign in with a professor account before saving an opportunity.");
+        setSaveError(
+          "Your session has ended. Sign in again with your professor account; your form entries will need to be re-entered.",
+        );
         return;
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", authData.user.id)
-        .single();
-
-      if (profileError || profile?.role !== "professor") {
+      // RLS enforces this too; checking first gives a clearer message.
+      const profile = await fetchProfileRole(supabase, authData.user.id);
+      if (profile.kind === "error") {
+        console.error("Profile lookup failed", profile.error);
+        setSaveError(NETWORK_SAVE_ERROR);
+        return;
+      }
+      if (profile.kind !== "role" || profile.role !== "professor") {
         setSaveError(
-          "This account does not have a professor profile. Ask an administrator to verify the account role.",
+          "This account does not have a professor profile. Ask the ResearchBridge team to verify the account role.",
         );
         return;
       }
@@ -522,7 +571,7 @@ export default function NewOpportunityPage() {
         setSaveError(
           insertError?.code === "42501"
             ? "Supabase denied this save. Confirm that you are signed in as the professor who owns the opportunity."
-            : "The opportunity could not be saved to Supabase. Your form entries are still here; check the connection and try again.",
+            : NETWORK_SAVE_ERROR,
         );
         return;
       }
@@ -557,33 +606,7 @@ export default function NewOpportunityPage() {
     : { label: "Draft", tone: "draft" as const };
 
   return (
-    <main className="paper-texture min-h-screen pb-20">
-      <div className="h-1.5 bg-[linear-gradient(90deg,#006747_0_72%,#418fde_72%_100%)]" aria-hidden="true" />
-      <nav className="mx-auto flex max-w-[900px] flex-wrap items-center justify-between gap-4 border-b border-rb-border px-5 py-4 sm:px-8">
-        <Link href="/" aria-label="Research Ambassadors home" className="flex items-center gap-3">
-          <Image src={logo} alt="The Research Ambassadors" className="h-14 w-14 rounded-full object-contain" priority />
-          <span className="hidden leading-none sm:block">
-            <span className="block font-serif text-base font-black tracking-tight text-rb-brand">Research Ambassadors</span>
-            <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.18em] text-rb-muted">Professor portal</span>
-          </span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/sign-in"
-            className="rounded-lg px-2 py-1 text-sm font-semibold text-rb-brand transition hover:text-rb-brand-hover"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/"
-            className="rounded-lg px-2 py-1 text-sm font-semibold text-rb-muted transition hover:text-rb-brand"
-          >
-            Back to home
-          </Link>
-        </div>
-      </nav>
-
-      <div className="mx-auto max-w-[900px] px-5 sm:px-8">
+    <>
         <header className="border-b border-rb-border pb-8 pt-4">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-rb-brand">
             Professor workspace
@@ -742,6 +765,14 @@ export default function NewOpportunityPage() {
                 >
                   Create another opportunity
                 </button>
+                {saved.opportunity.status === "published" ? (
+                  <Link
+                    href="/opportunities"
+                    className="rounded-lg border-2 border-rb-brand px-6 py-3.5 text-center font-bold text-rb-ink transition hover:bg-[rgba(0,103,71,0.08)] hover:text-rb-brand active:bg-[rgba(0,103,71,0.16)]"
+                  >
+                    View published opportunities
+                  </Link>
+                ) : null}
                 <Link
                   href="/"
                   className="rounded-lg border-2 border-rb-brand px-6 py-3.5 text-center font-bold text-rb-ink transition hover:bg-[rgba(0,103,71,0.08)] hover:text-rb-brand active:bg-[rgba(0,103,71,0.16)]"
@@ -1085,6 +1116,10 @@ export default function NewOpportunityPage() {
               </div>
             </div>
 
+            <p role="status" className="sr-only">
+              {isSaving ? "Saving opportunity…" : ""}
+            </p>
+
             {saveError ? (
               <p
                 role="alert"
@@ -1118,7 +1153,6 @@ export default function NewOpportunityPage() {
             </div>
           </form>
         ) : null}
-      </div>
-    </main>
+    </>
   );
 }
