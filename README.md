@@ -119,6 +119,98 @@ supabase db lint --local --level warning
 
 A clean run reports all pgTAP assertions successful and no schema lint errors.
 
+### Account provisioning
+
+**How roles work**
+
+- **Every user has two linked rows:**
+  * `auth.users`: handles sign-in (email and password).
+  * `public.profiles`: the app's row for that user.
+  * `profiles.id` must be the same value as `auth.users.id` exactly; link used for database to know which profile belongs to the signed-in user.
+
+- **`profiles.role` decides what a user can do.** It can be a professor, student or admin.
+  * **professor**: can create opportunities; view, update and delete their own in any status (draft, published, closed).
+  * **student**: allowed to browse published opportunities only.
+  * **admin**: reserved for the team. No page in the app yet.
+
+- **Database enforces rules, not frontend**: Row-level security checks the signed-in user's role and id on every request.
+
+- **What happens on sign-in**: The frontend reads the user's role and sends them to their page:
+  * **professors**: `/professor/opportunities/new`.
+  * **students**: `/opportunities`.
+  * If the user does not have a profile row, the app tells them to contact the team.
+
+**Student accounts**
+
+- **Students are allowed to create their own profile**:
+  * The database lets a signed-in user insert their own `profiles` row with two conditions:
+    - `id` must be their own `auth.users.id`.
+    - `role` must be `student`.
+
+- **Anything else is rejected by the database, including:**
+  * attempts to create a profile as `professor` or `admin`.
+  * creating a profile for someone else's id.
+
+- **For now, the team creates student accounts.**
+  * The app has no sign-up or "create profile" UI yet, so students are set up the same way as professors:
+    1. In the Supabase dashboard, go to **Authentication → Users → Add user** and enter an email and password. Check auto-confirm so they can sign in right away.
+    2. Copy the new user's **User UID**, then run this in the **SQL Editor**:
+       ```SQL
+
+       insert into public.profiles (id, full_name, role)
+       values ('<user-uid>', '<full name>', 'student');
+
+       ```
+
+**Professor accounts**
+
+- **Users cannot make themselves professors**
+  * If a signed-in user tries to create their own profile with `role = 'professor'`, the database will reject it.
+
+- **Only a team member with dashboard access can create professor accounts:**
+  1. In the Supabase dashboard, go to **Authentication → Users → Add user** and enter an email and password. Click auto-confirm if you want to sign in right away. 
+  2. Copy the new user's **User UID**, then run this in the **SQL Editor**:
+     ```SQL
+     
+     insert into public.profiles (id, full_name, role)
+     values ('<user-uid>', '<full name>', 'professor');
+     
+     ```
+
+- **Scripts that create accounts** may use the service-role key instead, but only in trusted server-side code. It bypasses row-level security, so it must never appear in frontend code, a `NEXT_PUBLIC_` variable, or a commit (see **Database Setup**).
+
+- **Checking it worked:** sign in as the new professor. Should land on `/professor/opportunities/new`. If they see the "contact the team" message, the profile row is missing or its `id` does not match the User UID.
+
+**Changing a role**
+
+- **Users cannot change their own role.** A database trigger rejects any signed-in user who tries to update `profiles.role`, including a student trying to become a professor or admin.
+- **A team member changes roles in the SQL Editor:**
+  ```SQL
+
+  update public.profiles
+  set role = 'professor'
+  where id = '<user-uid>';
+  
+  ```
+- The user should sign out and back in so it can allow the app to send them to the right page for their new role.
+
+**Test accounts**
+
+- The hosted project has two non-production test accounts for MVP testing: one professor and one student.
+- Each one has an `auth.users` row and `public.profiles` row with the same `id`.
+- Credentials are shared and stored privately with the team. Never put passwords, tokens, or keys in GitHub issues, pull requests, source code, migrations, seed files, or logs.
+- To confirm both accounts are set up correctly, run this in the **SQL Editor**:
+  ```SQL
+
+  select u.email, p.role
+  from auth.users u
+  join public.profiles p on p.id = u.id
+  order by p.role;
+
+  ```
+
+
+
 # Deadlines: 
 - **September 20**: A professor can create an opportunity and a student can browse it.
 - **October 4**: the entire student-to-professor workflow operates end to end.
