@@ -1,13 +1,8 @@
--- Run against a freshly reset local database (never against production):
---   supabase db reset --local
---   supabase test db
---
--- Supabase CLI installs pgTAP before executing this file. The whole suite runs
--- in one transaction and rolls back, so no fixture data is retained.
+
 
 begin;
 
-select plan(16);
+select plan(35);
 
 -- The schema-alignment migration exposes the four fields introduced by the
 -- version-2 professor form.
@@ -54,7 +49,8 @@ insert into auth.users (
 values
   ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'prof-a@test.edu', '', '{}', '{}'),
   ('22222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'prof-b@test.edu', '', '{}', '{}'),
-  ('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'student@test.edu', '', '{}', '{}');
+  ('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'student@test.edu', '', '{}', '{}'),
+  ('44444444-4444-4444-4444-444444444444', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'new-user@test.edu', '', '{}', '{}');
 
 insert into public.profiles (id, full_name, role)
 values
@@ -234,6 +230,176 @@ select throws_ok(
   'no more than eight preferred majors are accepted'
 );
 
+select throws_ok(
+  $$
+    insert into public.opportunities (
+      professor_id,
+      school,
+      department,
+      preferred_majors,
+      keywords,
+      title,
+      description,
+      duration_semesters,
+      eligible_class_years,
+      positions_available
+    )
+    values (
+      '11111111-1111-1111-1111-111111111111',
+      'science_and_engineering',
+      'Computer Science',
+      array['Computer Science'],
+      array['security'],
+      '   ',
+      'This opportunity intentionally has a title made only of whitespace.',
+      2,
+      array['freshman']::student_class_year[],
+      1
+    )
+  $$,
+  '23514',
+  null,
+  'an empty title is rejected'
+);
+
+select throws_ok(
+  $$
+    insert into public.opportunities (
+      professor_id,
+      school,
+      department,
+      preferred_majors,
+      keywords,
+      title,
+      description,
+      duration_semesters,
+      eligible_class_years,
+      positions_available
+    )
+    values (
+      '11111111-1111-1111-1111-111111111111',
+      'science_and_engineering',
+      'Computer Science',
+      array['Computer Science'],
+      array['security'],
+      'Short description',
+      'Too short to be useful.',
+      2,
+      array['freshman']::student_class_year[],
+      1
+    )
+  $$,
+  '23514',
+  null,
+  'a description shorter than 30 characters is rejected'
+);
+
+select throws_ok(
+  $$
+    insert into public.opportunities (
+      professor_id,
+      school,
+      department,
+      preferred_majors,
+      keywords,
+      title,
+      description,
+      duration_semesters,
+      eligible_class_years,
+      positions_available
+    )
+    values (
+      '11111111-1111-1111-1111-111111111111',
+      'science_and_engineering',
+      'Computer Science',
+      array['Computer Science'],
+      array['security'],
+      'No eligible class years',
+      'This opportunity intentionally lists no eligible class years at all.',
+      2,
+      '{}'::student_class_year[],
+      1
+    )
+  $$,
+  '23514',
+  null,
+  'an empty eligible class year list is rejected'
+);
+
+select throws_ok(
+  $$
+    insert into public.opportunities (
+      professor_id,
+      school,
+      department,
+      preferred_majors,
+      keywords,
+      title,
+      description,
+      duration_semesters,
+      eligible_class_years,
+      positions_available
+    )
+    values (
+      '11111111-1111-1111-1111-111111111111',
+      'science_and_engineering',
+      'Computer Science',
+      array['Computer Science'],
+      array[
+        'algorithms',
+        'compilers',
+        'databases',
+        'graphics',
+        'networking',
+        'robotics',
+        'security',
+        'systems',
+        'theory'
+      ],
+      'Too many keywords',
+      'This opportunity intentionally includes more than eight keywords.',
+      2,
+      array['freshman']::student_class_year[],
+      1
+    )
+  $$,
+  '23514',
+  null,
+  'no more than eight keywords are accepted'
+);
+
+select throws_ok(
+  $$
+    insert into public.opportunities (
+      professor_id,
+      school,
+      department,
+      preferred_majors,
+      keywords,
+      title,
+      description,
+      duration_semesters,
+      eligible_class_years,
+      positions_available
+    )
+    values (
+      '11111111-1111-1111-1111-111111111111',
+      'engineering',
+      'Computer Science',
+      array['Computer Science'],
+      array['security'],
+      'Invalid school',
+      'This opportunity intentionally uses a school that does not exist.',
+      2,
+      array['freshman']::student_class_year[],
+      1
+    )
+  $$,
+  '22P02',
+  null,
+  'an invalid academic school value is rejected'
+);
+
 -- A student cannot claim ownership of an opportunity through the browser API.
 set local "request.jwt.claims" =
   '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
@@ -280,6 +446,50 @@ select throws_ok(
   '42501',
   null,
   'a student cannot promote their own profile to professor'
+);
+
+select throws_ok(
+  $$
+    update public.profiles
+    set role = 'admin'
+    where id = '33333333-3333-3333-3333-333333333333'
+  $$,
+  '42501',
+  null,
+  'a student cannot promote their own profile to admin'
+);
+
+reset role;
+set local "request.jwt.claims" =
+  '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}';
+set local role authenticated;
+
+select throws_ok(
+  $$
+    insert into public.profiles (id, full_name, role)
+    values ('44444444-4444-4444-4444-444444444444', 'New User', 'professor')
+  $$,
+  '42501',
+  null,
+  'a new user cannot create their own professor profile'
+);
+
+select throws_ok(
+  $$
+    insert into public.profiles (id, full_name, role)
+    values ('44444444-4444-4444-4444-444444444444', 'New User', 'admin')
+  $$,
+  '42501',
+  null,
+  'a new user cannot create their own admin profile'
+);
+
+select lives_ok(
+  $$
+    insert into public.profiles (id, full_name, role)
+    values ('44444444-4444-4444-4444-444444444444', 'New User', 'student')
+  $$,
+  'a new user can create their own student profile'
 );
 
 -- Professor A: authenticated requests carry the user ID in the JWT claims.
@@ -359,11 +569,24 @@ values
     array['senior']::student_class_year[],
     1,
     'draft'
+  ),
+  (
+    '11111111-1111-1111-1111-111111111111',
+    'science_and_engineering',
+    'Neuroscience',
+    '{}'::text[],
+    array['neuroscience'],
+    'Closed Study',
+    'This study has finished recruiting and is no longer accepting students.',
+    1,
+    array['junior']::student_class_year[],
+    1,
+    'closed'
   );
 
 select is(
   (select count(*) from public.opportunities where professor_id = auth.uid()),
-  2::bigint,
+  3::bigint,
   'a professor can create and view their own opportunities'
 );
 
@@ -383,6 +606,33 @@ select is(
   'another professor cannot modify an opportunity they do not own'
 );
 
+select is(
+  (select count(*) from public.opportunities where title = 'Genomics RA'),
+  1::bigint,
+  'another professor can see a published opportunity'
+);
+
+select is(
+  (select count(*) from public.opportunities where title = 'Unfinished Draft'),
+  0::bigint,
+  'another professor cannot see a draft opportunity'
+);
+
+select is(
+  (select count(*) from public.opportunities where title = 'Closed Study'),
+  0::bigint,
+  'another professor cannot see a closed opportunity'
+);
+
+delete from public.opportunities
+where title = 'Genomics RA';
+
+select is(
+  (select count(*) from public.opportunities where title = 'Genomics RA'),
+  1::bigint,
+  'another professor cannot delete an opportunity they do not own'
+);
+
 -- A student can browse the published opportunity but cannot see the draft.
 reset role;
 set local "request.jwt.claims" =
@@ -399,6 +649,65 @@ select is(
   (select count(*) from public.opportunities where title = 'Unfinished Draft'),
   0::bigint,
   'a student cannot see a draft opportunity'
+);
+
+select is(
+  (select count(*) from public.opportunities where title = 'Closed Study'),
+  0::bigint,
+  'a student cannot see a closed opportunity'
+);
+
+update public.opportunities
+set title = 'Student Edit'
+where title = 'Genomics RA';
+
+select is(
+  (select count(*) from public.opportunities where title = 'Student Edit'),
+  0::bigint,
+  'a student cannot update an opportunity'
+);
+
+delete from public.opportunities
+where title = 'Genomics RA';
+
+select is(
+  (select count(*) from public.opportunities where title = 'Genomics RA'),
+  1::bigint,
+  'a student cannot delete an opportunity'
+);
+
+reset role;
+set local "request.jwt.claims" = '{"role":"anon"}';
+set local role anon;
+
+select is(
+  (select count(*) from public.opportunities),
+  0::bigint,
+  'an anonymous user cannot see any opportunity'
+);
+
+reset role;
+set local "request.jwt.claims" =
+  '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+set local role authenticated;
+
+update public.opportunities
+set title = 'Revised Draft'
+where title = 'Unfinished Draft';
+
+select is(
+  (select count(*) from public.opportunities where title = 'Revised Draft'),
+  1::bigint,
+  'a professor can update their own opportunity'
+);
+
+delete from public.opportunities
+where title = 'Closed Study';
+
+select is(
+  (select count(*) from public.opportunities where title = 'Closed Study'),
+  0::bigint,
+  'a professor can delete their own opportunity'
 );
 
 reset role;

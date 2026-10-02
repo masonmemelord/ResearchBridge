@@ -55,3 +55,25 @@ Please include:
 2. Test RLS
 3. Integrate Sign-in/out auth specifications
 
+## Sep 28
+**Changes Made:**
+1. Added migration `20260926210414_secure_profiles_and_opportunity_reads.sql`
+    - Users can only create their own profile with role `student`; professor/admin profiles can no longer be self-assigned
+    - Professor profiles must now be created by an admin (dashboard or service-role key, never in frontend code)
+    - Existing trigger still blocks users from changing their own role
+    - Opportunity read policies restricted to signed-in users; anonymous requests see nothing
+2. Expanded RLS tests (`backend/supabase/tests/verify_opportunities_rls.sql`) from 16 to 35 tests
+    - Profiles: new user cannot create a professor or admin profile, can create a student profile; student cannot change role to admin
+    - Visibility: anonymous sees nothing; student and other professors see published only; owner sees draft/published/closed
+    - Writes: owner can update/delete; other professors and students cannot delete; students cannot update
+    - Constraints: empty title, description under 30 chars, empty class-year list, more than 8 keywords, invalid school value
+3. Updated README to include changes to Account provisioning section: (roles, student/professor setup, changing roles, test accounts)
+4. Set up local Supabase with Colima (Docker runtime installed via Homebrew, no Docker Desktop needed)
+5. Local results: migrations apply cleanly, all 35 tests pass, `supabase db lint` finds no issues running.
+6. Created professor and student test accounts in the hosted project (credentials shared outside GitHub)
+7. Verified the workflow against the hosted project: professor publishes, student sees published only, signed-out users see nothing
+
+**Future Changes**
+1. Teammate review and merge of the Issue #3 PR
+
+`Colima setup: run colima start before supabase start`
