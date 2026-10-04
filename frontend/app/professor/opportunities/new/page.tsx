@@ -1,14 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AuthNav } from "../../../../components/auth/AuthNav";
-import { ProfessorGate } from "../../../../components/auth/ProfessorGate";
-import { fetchProfileRole } from "../../../../lib/auth/profile";
+import { ProfessorPageShell } from "../../../../components/professor/ProfessorPageShell";
+import { PROFESSOR_ROUTES, fetchProfileRole } from "../../../../lib/auth/profile";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/client";
-import logo from "../../../TRALogo.png";
+import { draftSavingEnabled } from "../../../../lib/release";
 
 /* -------------------------------------------------------------------------- */
 /* Domain types and reference data                                            */
@@ -419,36 +417,9 @@ const NETWORK_SAVE_ERROR =
 
 export default function NewOpportunityPage() {
   return (
-    <main className="paper-texture min-h-screen pb-20">
-      <div className="h-1.5 bg-[linear-gradient(90deg,#006747_0_72%,#418fde_72%_100%)]" aria-hidden="true" />
-      <nav
-        aria-label="Main"
-        className="mx-auto flex max-w-[900px] flex-wrap items-center justify-between gap-4 border-b border-rb-border px-5 py-4 sm:px-8"
-      >
-        <Link href="/" aria-label="Research Ambassadors home" className="flex items-center gap-3">
-          <Image src={logo} alt="The Research Ambassadors" className="h-14 w-14 rounded-full object-contain" priority />
-          <span className="hidden leading-none sm:block">
-            <span className="block font-serif text-base font-black tracking-tight text-rb-brand">Research Ambassadors</span>
-            <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.18em] text-rb-muted">Professor portal</span>
-          </span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <AuthNav />
-          <Link
-            href="/"
-            className="rounded-lg px-2 py-1 text-sm font-semibold text-rb-muted transition hover:text-rb-brand"
-          >
-            Back to home
-          </Link>
-        </div>
-      </nav>
-
-      <div className="mx-auto max-w-[900px] px-5 sm:px-8">
-        <ProfessorGate>
-          <NewOpportunityWorkspace />
-        </ProfessorGate>
-      </div>
-    </main>
+    <ProfessorPageShell>
+      <NewOpportunityWorkspace />
+    </ProfessorPageShell>
   );
 }
 
@@ -603,7 +574,7 @@ function NewOpportunityWorkspace() {
     ? saved.opportunity.status === "published"
       ? { label: "Published", tone: "published" as const }
       : { label: "Draft saved", tone: "draft" as const }
-    : { label: "Draft", tone: "draft" as const };
+    : { label: "Not published", tone: "draft" as const };
 
   return (
     <>
@@ -674,7 +645,7 @@ function NewOpportunityWorkspace() {
                   </h2>
                   <p className="mt-2 max-w-xl text-[15px] leading-6 text-rb-muted">
                     {saved.opportunity.status === "published"
-                      ? "This opportunity is saved in Supabase and is ready for students to discover."
+                      ? "Students can now find and apply to it. Applicants appear under My opportunities."
                       : "This opportunity is saved in Supabase as a private draft. Students cannot see it until you publish it."}
                   </p>
                 </div>
@@ -774,10 +745,10 @@ function NewOpportunityWorkspace() {
                   </Link>
                 ) : null}
                 <Link
-                  href="/"
+                  href={PROFESSOR_ROUTES.opportunities}
                   className="rounded-lg border-2 border-rb-brand px-6 py-3.5 text-center font-bold text-rb-ink transition hover:bg-[rgba(0,103,71,0.08)] hover:text-rb-brand active:bg-[rgba(0,103,71,0.16)]"
                 >
-                  Back to home
+                  View my opportunities
                 </Link>
               </div>
             </section>
@@ -858,7 +829,7 @@ function NewOpportunityWorkspace() {
               <Field
                 id="description"
                 label={FIELD_LABELS.description}
-                hint="Cover the research question, what a student would actually do week to week, and any skills that help."
+                hint="Cover the research question, weekly responsibilities, helpful skills, and faculty-approved contact or application steps."
                 error={visibleErrors.description}
                 meta={
                   <span className="text-[13px] font-semibold tabular-nums text-rb-muted">
@@ -1131,6 +1102,16 @@ function NewOpportunityWorkspace() {
             ) : null}
 
             <div className="mt-9 flex flex-col gap-3 border-t border-rb-border pt-7 sm:flex-row sm:items-center">
+              {draftSavingEnabled() ? (
+                <button
+                  type="button"
+                  onClick={() => void save("draft")}
+                  disabled={isSaving}
+                  className="rounded-lg border border-rb-ink px-7 py-4 text-center font-bold text-rb-ink transition hover:bg-rb-surface disabled:cursor-wait disabled:opacity-60 sm:order-1"
+                >
+                  Save draft
+                </button>
+              ) : null}
               <button
                 type="submit"
                 disabled={isSaving}
@@ -1138,17 +1119,10 @@ function NewOpportunityWorkspace() {
               >
                 {isSaving ? "Saving…" : "Publish opportunity"}
               </button>
-              <button
-                type="button"
-                disabled={isSaving}
-                onClick={() => void save("draft")}
-                className="rounded-lg border-2 border-rb-brand px-7 py-4 text-center font-bold text-rb-ink transition hover:bg-[rgba(0,103,71,0.08)] hover:text-rb-brand active:bg-[rgba(0,103,71,0.16)] disabled:cursor-wait disabled:opacity-60 sm:order-1"
-              >
-                {isSaving ? "Saving…" : "Save draft"}
-              </button>
               <p className="text-[13px] leading-5 text-rb-muted sm:order-3 sm:ml-2">
-                Drafts stay private to you. Publishing makes the opportunity visible to
-                students. Both are stored in Supabase and protected by row-level security.
+                Publishing makes this opportunity visible to signed-in students, who can
+                apply from the listing. You will see applicants under My opportunities.
+                Editing or closing a listing is not available yet.
               </p>
             </div>
           </form>

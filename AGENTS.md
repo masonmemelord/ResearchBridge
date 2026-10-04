@@ -34,6 +34,26 @@ secure, well-documented changes that are appropriate for production software.
   tradeoffs close to the code or in project documentation.
 - Write concise comments only where intent is not clear from the code itself.
 
+## End-of-Session Change Log
+
+- Use the repository-root `Docs.md` as the shared ticket and change log used by both
+  coding agents. Read it at the start of each session for recent changes and
+  outstanding work.
+- Before the final handoff at the end of each session, append one dated entry
+  to `Docs.md`. Use `YYYY-MM-DD` and a short task title so multiple sessions
+  on the same day remain distinguishable.
+- Include the changes actually made and why, the affected file paths,
+  verification commands or checks with their results, and any remaining
+  blockers or follow-up tasks. Link an existing issue or pull request when
+  relevant; do not invent ticket identifiers.
+- Clearly distinguish completed work from proposed work. State when checks
+  were not run and why. If no implementation changes were made, say so and
+  record the review outcome or blocker instead.
+- Preserve previous entries and other contributors' work. Append to this log
+  rather than creating a separate session change log in another file.
+- Never include credentials, tokens, private user data, or raw sensitive logs.
+  Updating `Docs.md` does not authorize committing, pushing, or deploying.
+
 ## CI/CD and Quality
 
 - Maintain reliable CI pipelines that install dependencies reproducibly, run

@@ -4,13 +4,21 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "node scripts/dev-local.mjs",
+    "test:resumes": "node --experimental-strip-types --test tests/resumes.test.mjs",
+    "test:auth": "node --experimental-strip-types --test tests/signup.test.mjs",
+    "test:release": "node --experimental-strip-types --test tests/release.test.mjs",
+    "test:applications": "node --experimental-strip-types --test tests/applications.test.mjs",
+    "test:admin": "node --experimental-strip-types --test tests/admin.test.mjs",
+    "release:check": "npm run lint && tsc --noEmit --incremental false && npm run test:auth && npm run test:resumes && npm run test:release && npm run test:applications && npm run test:admin && npm audit --omit=dev && npm run build",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
-    "next": "16.3.4",
+    "next": "16.3.8",
+    "pdf-parse": "2.4.5",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -20,7 +28,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

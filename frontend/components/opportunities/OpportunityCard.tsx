@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
 import {
   classYearLabel,
   durationLabel,
   schoolLabel,
   type PublishedOpportunity,
 } from "../../lib/opportunities/published";
+import { PILOT_CONTACT_EMAIL, pilotEmailHref } from "../../lib/release";
 
 function TagList({ items, label }: { items: readonly string[]; label: string }) {
   return (
@@ -24,7 +26,13 @@ function Fallback({ children }: { children: string }) {
   return <p className="mt-1 text-rb-muted">{children}</p>;
 }
 
-export function OpportunityCard({ opportunity }: { opportunity: PublishedOpportunity }) {
+type OpportunityCardProps = {
+  opportunity: PublishedOpportunity;
+  /** Role-specific next step, such as the student Apply control. */
+  actions?: ReactNode;
+};
+
+export function OpportunityCard({ opportunity, actions }: OpportunityCardProps) {
   const {
     title,
     description,
@@ -49,7 +57,7 @@ export function OpportunityCard({ opportunity }: { opportunity: PublishedOpportu
         {title || "Untitled opportunity"}
       </h2>
       {description ? (
-        <p className="mt-3 line-clamp-4 break-words text-sm leading-6 text-rb-muted">
+        <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-rb-muted">
           {description}
         </p>
       ) : (
@@ -95,6 +103,21 @@ export function OpportunityCard({ opportunity }: { opportunity: PublishedOpportu
           </dd>
         </div>
       </dl>
+      <section className="mt-auto pt-6" aria-label="Opportunity next steps">
+        <div className="border-t border-rb-border pt-5">
+          <h3 className="text-sm font-bold text-rb-ink">Interested in this research?</h3>
+          {actions ? <div className="mt-3">{actions}</div> : null}
+          <p className="mt-4 text-xs leading-5 text-rb-muted">
+            Questions about this listing?{" "}
+            <a
+              href={pilotEmailHref(title || "Untitled opportunity")}
+              className="break-all font-semibold text-rb-brand underline underline-offset-2 hover:text-rb-brand-hover"
+            >
+              Email {PILOT_CONTACT_EMAIL}
+            </a>
+          </p>
+        </div>
+      </section>
     </article>
   );
 }

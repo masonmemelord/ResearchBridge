@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { hasSession, useAuth } from "../../lib/auth/auth-context";
-import { ROLE_HOME } from "../../lib/auth/profile";
+import { ADMIN_HOME, PROFESSOR_ROUTES, ROLE_HOME } from "../../lib/auth/profile";
+import { publicSignupEnabled, resumeDemoEnabled } from "../../lib/release";
 
 type AuthNavProps = {
   /** "home" keeps the landing page's prominent call to action. */
@@ -31,6 +32,7 @@ export function AuthNav({ variant = "compact" }: AuthNavProps) {
 
   const isProfessor = state.status === "signed-in" && state.role === "professor";
   const isStudent = state.status === "signed-in" && state.role === "student";
+  const isAdmin = state.status === "signed-in" && state.role === "admin";
 
   async function handleSignOut() {
     setSignOutError(null);
@@ -44,8 +46,8 @@ export function AuthNav({ variant = "compact" }: AuthNavProps) {
         <Link href="/sign-in" className={textActionClass.home}>
           Sign in
         </Link>
-        <Link href="/sign-in" className={homeCtaClass}>
-          Get started
+        <Link href={publicSignupEnabled() ? "/sign-up" : "/access"} className={homeCtaClass}>
+          {publicSignupEnabled() ? "Get started" : "Request access"}
         </Link>
       </>
     ) : (
@@ -71,26 +73,55 @@ export function AuthNav({ variant = "compact" }: AuthNavProps) {
     return <div className="flex items-center gap-3 sm:gap-6">{signedOutActions}</div>;
   }
 
+  const compactLinkClass =
+    "rounded-lg px-2 py-1 text-sm font-semibold text-rb-muted transition hover:text-rb-brand";
+
   const primaryAction =
     variant === "home" && isProfessor ? (
       <Link href={ROLE_HOME.professor} className={`hidden sm:inline-flex ${homeCtaClass}`}>
-        Post an opportunity
+        My opportunities
+      </Link>
+    ) : variant === "home" && isAdmin ? (
+      <Link href={ADMIN_HOME} className={`hidden sm:inline-flex ${homeCtaClass}`}>
+        Admin dashboard
       </Link>
     ) : variant === "home" && isStudent ? (
       <Link href={ROLE_HOME.student} className={`hidden sm:inline-flex ${homeCtaClass}`}>
         Browse opportunities
       </Link>
-    ) : variant === "compact" && isProfessor && pathname !== ROLE_HOME.professor ? (
-      <Link
-        href={ROLE_HOME.professor}
-        className="rounded-lg px-2 py-1 text-sm font-semibold text-rb-muted transition hover:text-rb-brand"
-      >
-        Post an opportunity
-      </Link>
+    ) : variant === "compact" && isProfessor ? (
+      <>
+        {pathname !== PROFESSOR_ROUTES.opportunities ? (
+          <Link href={PROFESSOR_ROUTES.opportunities} className={compactLinkClass}>
+            My opportunities
+          </Link>
+        ) : null}
+        {pathname !== PROFESSOR_ROUTES.newOpportunity ? (
+          <Link href={PROFESSOR_ROUTES.newOpportunity} className={compactLinkClass}>
+            Post an opportunity
+          </Link>
+        ) : null}
+      </>
+    ) : variant === "compact" && isAdmin ? (
+      <>
+        {pathname !== ADMIN_HOME ? (
+          <Link href={ADMIN_HOME} className={compactLinkClass}>
+            Admin dashboard
+          </Link>
+        ) : null}
+        {pathname !== ROLE_HOME.student ? (
+          <Link href={ROLE_HOME.student} className={compactLinkClass}>
+            Browse opportunities
+          </Link>
+        ) : null}
+      </>
     ) : null;
 
   return (
     <div className="relative flex items-center gap-3 sm:gap-6">
+      {isStudent && resumeDemoEnabled() && pathname !== "/student/resume" ? (
+        <Link href="/student/resume" className={textActionClass[variant]}>My résumé</Link>
+      ) : null}
       {variant === "compact" ? primaryAction : null}
       <button
         type="button"

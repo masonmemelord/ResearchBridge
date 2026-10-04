@@ -42,6 +42,12 @@ excellent UI/UX, visual polish, accessibility, and sustainable system design.
 
 ## Delivery
 
+- Read the repository-root `Docs.md` at the start of each session and append
+  an entry before the final handoff, following the **End-of-Session Change Log**
+  requirements in `AGENTS.md`.
+- Use `Docs.md` as the shared ticket and session log for changes, affected files,
+  verification results, and remaining work. Preserve existing entries and
+  distinguish completed changes from recommendations, even when no code changed.
 - Before completing a UI change, test its main workflow, keyboard behavior,
   responsive layout, and empty/error states. Run the relevant lint, type, and
   build checks.

@@ -36,57 +36,62 @@
   --font-serif: var(--rb-display);
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+/* Element resets live in the base layer so Tailwind utilities (text color,
+   weight, size, underline, cursor) on links, buttons, and inputs win as
+   written. Unlayered rules here would override every utility class. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-html {
-  min-width: 320px;
-  scroll-behavior: smooth;
-}
+  html {
+    min-width: 320px;
+    scroll-behavior: smooth;
+  }
 
-body {
-  min-width: 320px;
-  margin: 0;
-  overflow-x: hidden;
-  background: var(--rb-canvas);
-  color: var(--rb-ink);
-  font-family: var(--rb-body);
-  text-rendering: optimizeLegibility;
-}
+  body {
+    min-width: 320px;
+    margin: 0;
+    overflow-x: hidden;
+    background: var(--rb-canvas);
+    color: var(--rb-ink);
+    font-family: var(--rb-body);
+    text-rendering: optimizeLegibility;
+  }
 
-a,
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
+  a,
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 
-button,
-a {
-  -webkit-tap-highlight-color: transparent;
-}
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 
-button {
-  cursor: pointer;
-}
+  button {
+    cursor: pointer;
+  }
 
-:focus-visible {
-  outline: 2px solid var(--rb-brand);
-  outline-offset: 2px;
-}
+  :focus-visible {
+    outline: 2px solid var(--rb-brand);
+    outline-offset: 2px;
+  }
 
-::selection {
-  background: var(--rb-brand);
-  color: white;
+  ::selection {
+    background: var(--rb-brand);
+    color: white;
+  }
 }
 
 .paper-texture {

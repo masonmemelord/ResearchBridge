@@ -1,22 +1,31 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Roles that have a ResearchBridge workspace in the frontend. */
-export type SupportedRole = "professor" | "student";
+export type SupportedRole = "admin" | "professor" | "student";
 
 export type ProfileLookup =
   | { kind: "role"; role: SupportedRole }
-  /** The profile exists but its role has no frontend workspace (e.g. "admin"). */
+  /** The profile exists but its role has no frontend workspace. */
   | { kind: "unsupported-role"; role: string }
   | { kind: "missing" }
   | { kind: "error"; error: unknown };
 
+export const PROFESSOR_ROUTES = {
+  /** The professor's listings and their applicants. */
+  opportunities: "/professor/opportunities",
+  newOpportunity: "/professor/opportunities/new",
+} as const;
+
+export const ADMIN_HOME = "/admin";
+
 export const ROLE_HOME: Record<SupportedRole, string> = {
-  professor: "/professor/opportunities/new",
+  admin: ADMIN_HOME,
+  professor: PROFESSOR_ROUTES.opportunities,
   student: "/opportunities",
 };
 
 function isSupportedRole(value: unknown): value is SupportedRole {
-  return value === "professor" || value === "student";
+  return value === "admin" || value === "professor" || value === "student";
 }
 
 /**
