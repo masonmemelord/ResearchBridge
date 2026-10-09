@@ -3,7 +3,7 @@ import { publicSignupEnabled } from "../../lib/release";
 import StudentSignup from "./StudentSignup";
 
 export default function SignUpPage() {
-  // Server gate: direct visits cannot render the unfinished production signup.
-  if (!publicSignupEnabled()) redirect("/access");
+  // Server gate: until hosted signup email is ready, direct visits go to sign-in.
+  if (!publicSignupEnabled()) redirect("/sign-in");
   return <StudentSignup />;
 }

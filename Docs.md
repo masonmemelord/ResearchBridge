@@ -678,6 +678,102 @@ profiles read policy, and enabling student signup once hosted email works.
 - Professors still cannot edit or close their own postings. Admins can close
   them.
 
+## 2026-10-08 — Student sign-up readiness and removal of "Request access"
+
+**Completed changes:**
+
+- Removed the request-access flow. Deleted `frontend/app/access/page.tsx` and
+  every "Request access" / "Request an invitation" link from the homepage nav
+  (`frontend/components/auth/AuthNav.tsx`), sign-in
+  (`frontend/app/sign-in/page.tsx`), email-confirmation
+  (`frontend/app/auth/callback/page.tsx`) and the signed-out opportunities
+  panel (`frontend/app/opportunities/page.tsx`). With sign-up closed, the
+  homepage's primary nav action is **Sign in** and auth pages say accounts are
+  set up by the team.
+- `frontend/app/sign-up/page.tsx` now redirects to `/sign-in` while the
+  production gate is closed. `frontend/next.config.ts` adds a temporary (307)
+  redirect from `/access` to `/sign-in` for old links. Nothing points to `/access`.
+- `frontend/lib/release.ts`: `pilotEmailHref` now only builds opportunity
+  question emails (title required); the generic invitation email is gone.
+  `frontend/tests/release.test.mjs` updated (9 tests).
+- **Public sign-up was not enabled.** `publicSignupEnabled()` still returns
+  false in production because the hosted email setup failed verification
+  (below). Résumé upload remains production-disabled (unchanged).
+- Updated the sign-up reference text and hosted checklist in this file.
+
+**Verification — hosted Supabase (read-only settings, real test sign-ups):**
+
+- `supabase migration list --linked`: all 9 migrations applied on hosted,
+  including the self-signup trigger, applications, and admin tier.
+- `/auth/v1/settings`: `disable_signup: false`, `mailer_autoconfirm: false`.
+- Two fresh disposable inboxes (mail.tm) were registered with the same
+  `signUp` call the page makes, including `role: "admin"` in the metadata.
+  Email arrived within 5 s at the address entered, but from Supabase's built-in
+  sender with the **default link-only template**. No six-digit code is
+  sent, so `verifyOtp` failed. The link's redirect fell back to
+  `researchbridge-mason-mitchells-projects.vercel.app`; the requested
+  `https://researchbridge-omega.vercel.app/auth/callback` is not allow-listed.
+- Confirmed the second test account through its emailed link and ran checks as
+  that signed-in student on hosted: 9/9 passed. Profile created as `student`
+  despite `role: "admin"` metadata. Updating own role to professor/admin,
+  inserting a professor profile, `admin_set_user_role`, and `admin_list_users`
+  were all rejected (42501). No other profiles are readable. Only published
+  opportunities are returned (1 row).
+
+**Verification — deployed site (read-only HTTP, before this change):**
+
+- `https://researchbridge-omega.vercel.app` is deployed at `34795fb` (current
+  `main`). `/sign-up` → 307 `/access`; homepage shows "Request access";
+  `/student/resume` 404. This session's changes are **not deployed**.
+
+**Verification — local only:**
+
+- `npm run lint` and `tsc --noEmit --incremental false` passed (after moving
+  stale `.next/dev/types` from an old dev session to the session scratchpad and
+  running `next typegen`). Tests: auth 12, résumé 10, release 9,
+  applications 8, admin 6, all passing. `npm run build` passed.
+- `npm audit --omit=dev` **fails**: two new high advisories in transitive
+  dependencies, `sharp` (<0.35.5, GHSA-wq5f-xc86-pv6w) and `source-map-js`
+  (GHSA-68fv-2mgg-jv7q). The lockfile was not changed in this session, so
+  `release:check` currently stops at the audit step.
+- `next start` smoke test: `/sign-up` and `/access` → 307 `/sign-in`; `/`,
+  `/sign-in`, `/verify-email`, `/opportunities`, `/auth/callback` 200; résumé
+  page and API 404. Headless Chrome with emulated 375px and 768px viewports:
+  no horizontal overflow, no request-access text or `/access` links, logical
+  tab order with visible focus on home and sign-in.
+- Not run: local `supabase test db` (no SQL changed). Existing-account sign-in
+  was not exercised end to end (no team credentials used); its code path is
+  unchanged apart from the footer text.
+
+**Required before opening student sign-up (hosted settings, needs a person):**
+
+1. Authentication → Emails → SMTP Settings: configure a real provider and a
+   verified sender.
+2. Authentication → Email Templates → Confirm signup: include `{{ .Token }}`
+   (for example, use `backend/supabase/templates/confirm_signup.html`). Keep
+   email OTP length 6 and expiry 3600 s.
+3. Authentication → URL Configuration: Site URL
+   `https://researchbridge-omega.vercel.app`; add
+   `https://researchbridge-omega.vercel.app/auth/callback` to Redirect URLs.
+4. Keep Confirm email on; set minimum password length 8 (not visible publicly,
+   so unverified).
+5. Re-run the fresh-inbox check, then change `publicSignupEnabled()` for
+   production in a reviewed PR and deploy.
+
+**Other follow-ups:**
+
+- Decide now whether to set hosted **Allow new users to sign up** off until
+  step 5. It is currently on, so anyone can register through the Auth API and,
+  after clicking the emailed link, browse published listings as a student.
+- Delete the two hosted test accounts: `rb-signup-b588d494@maxxspace.com`
+  (unconfirmed) and `rb-signup-d61b5a81@maxxspace.com` (confirmed, id
+  `90538e66-0955-45a3-9fa2-ba2962207fc1`). Delete each `profiles` row first,
+  then the Auth user (the foreign key has no cascade).
+- Patch `sharp` and `source-map-js` in a separate dependency change.
+- `frontend/.env.example` was deleted in `34795fb` but this file still tells
+  readers to copy it.
+- No commits, pushes, deployments, or hosted setting changes were made.
+
 
 The schema (enums, `profiles`, `departments`, `opportunities`, constraints, indexes, triggers, and RLS policies) lives in `backend/supabase/migrations/`. Department seed data lives in `backend/supabase/seed.sql`.
 
@@ -854,8 +950,10 @@ downloaded model remains reusable locally.
   * attempts to create a profile as `professor` or `admin`.
   * creating a profile for someone else's id.
 
-- **Pilot students request access at `/access`.** The preserved `/sign-up` flow
-  is experimental and development-only; production redirects to `/access`.
+- **Student self-sign-up at `/sign-up` is built but closed in production** until
+  the hosted email setup below is done; production redirects `/sign-up` to
+  `/sign-in`. The old `/access` request page was removed (`/access` also
+  redirects to `/sign-in`). Until sign-up opens, the team creates accounts.
 
 - **The team can still create a student by hand** (for example, for a demo account):
   1. In the Supabase dashboard, go to **Authentication → Users → Add user** and enter an email and password. Check auto-confirm so they can sign in right away.
@@ -869,10 +967,12 @@ downloaded model remains reusable locally.
 
 **Student sign-up and email confirmation**
 
-This is a preserved development feature, **not part of the invite-only release**.
-Set `NEXT_PUBLIC_ENABLE_SELF_SIGNUP=true` only for local testing and explicitly
-enable local Auth signup for that session. Production always redirects `/sign-up`
-to `/access`. Do not enable hosted public registration for this pilot.
+Built and tested, but **closed in production** until the hosted checklist below
+passes. Set `NEXT_PUBLIC_ENABLE_SELF_SIGNUP=true` only for local testing and
+explicitly enable local Auth signup for that session. `publicSignupEnabled()` in
+`frontend/lib/release.ts` returns false in production builds, so production
+redirects `/sign-up` to `/sign-in`; opening sign-up means changing that gate in
+a reviewed pull request after the checklist passes.
 
 - **The flow:**
   1. A student fills in name, email, and password at `/sign-up` (linked from **Get started** and the sign-in page when development signup is enabled).
@@ -880,8 +980,7 @@ to `/access`. Do not enable hosted public registration for this pilot.
   3. The student enters the code. The browser calls Supabase `verifyOtp` with that email, token, and `type: 'email'`, then routes the verified student to `/opportunities`.
   4. If the page is closed before verification, open `/verify-email`, enter the same email and code, and continue. Signing in before confirming offers a resend control. `/auth/callback` remains for previously issued links and other link-based Auth responses.
 
-The Research Ambassadors mailbox is only for pilot-access and opportunity
-questions. It is never passed to Supabase as the verification recipient. The
+The Research Ambassadors mailbox is only for opportunity questions. It is never passed to Supabase as the verification recipient. The
 local confirmation template is `backend/supabase/templates/confirm_signup.html`;
 its `{{ .Token }}` placeholder is supplied by Supabase, not generated or stored
 by the frontend.
@@ -899,13 +998,22 @@ by the frontend.
   * Run the frontend on port 3000 (`npm run dev` or `npm run dev:local`). Confirmation links only return to the redirect URLs allowed in `config.toml`.
   * Dashboard-created local users still need **auto-confirm** checked, now that confirmation is required.
 
-- **Future hosted signup checklist, not a pilot launch instruction.** `config.toml` only controls the local stack. Before intentionally opening registration in a future release, a team member must do these in the hosted project (and revise the production signup gate):
-  1. Apply the new migration with `supabase db push`. Without it, new students are told their profile is missing.
+- **Hosted signup checklist (status checked 2026-10-08).** `config.toml` only controls the local stack. Before opening registration, a team member must do these in the hosted project, then revise the production signup gate:
+  1. ✅ Done: migration `20261004120000` is applied on hosted and verified to create only `student` profiles.
   2. **Authentication → Sign In / Providers → Email:** keep **Confirm email** on and set the minimum password length to 8.
   3. **Authentication → URL Configuration:** set **Site URL** to the deployed site, and add `https://<your-domain>/auth/callback` and `http://localhost:3000/auth/callback` to **Redirect URLs**.
   4. **Authentication → Emails → SMTP Settings:** configure and verify a real email provider. Supabase's built-in email service only delivers to the project team's own addresses and has a very low hourly limit, so student codes will not arrive without this. Set a verified sender address; the recipient comes from the student signup form.
   5. **Authentication → Email Templates → Confirm signup:** use a code template containing `{{ .Token }}` (not only `{{ .ConfirmationURL }}`). For example: `<p>Your ResearchBridge code: {{ .Token }}</p>`. Match the six-digit code length and one-hour expiry in Auth settings. The local template file does not update the hosted project automatically.
   6. Test signup and resend with a **team-owned test student inbox**, enter the code on `/sign-up`, and check that the verified student reaches `/opportunities`.
+
+  As of 2026-10-08, steps 3–5 are **not done** on hosted: the confirmation email
+  is Supabase's default link-only template from `noreply@mail.app.supabase.io`,
+  and its link returns to `researchbridge-mason-mitchells-projects.vercel.app`
+  rather than `https://researchbridge-omega.vercel.app/auth/callback`. Hosted
+  Auth also still reports `disable_signup: false`, so the Auth API accepts
+  registrations even though the web page is closed. The built-in sender did
+  deliver to a non-team test address in that check, but it is rate-limited and
+  not meant for production, so custom SMTP is still required.
 
 - **Known limitation:** anyone with a working email address can create a student account and then browse published opportunities. To limit sign-up to university addresses, add a server-side check, such as a Supabase "before user created" auth hook. A frontend-only check is not enough because the signup API is public.
 
@@ -968,5 +1076,15 @@ by the frontend.
 
   ```
 
-  ### To-Do
-  
+### To-Do
+
+- [ ] **Set up Resend for sign-up and emails.** Use Resend as the custom SMTP
+  provider in hosted Supabase (**Authentication → Emails → SMTP Settings**) with
+  a verified sending domain. Then finish the rest of the hosted sign-up
+  checklist above: the `{{ .Token }}` "Confirm signup" template, Site URL, and
+  redirect URLs. Re-test with a fresh inbox before opening the production
+  sign-up gate.
+- [ ] **Finish résumé scanning logic.** The feature is still local-only and held
+  out of hosted migrations (see `backend/supabase/held/README.md` and the
+  "Before production" notes in **Local AI résumé demo**).
+- [ ] **UI changes.**

@@ -224,17 +224,18 @@ export default function OpportunitiesPage() {
         <section className={panelClass}>
           <h2 className="font-serif text-2xl font-bold text-rb-ink">Sign in to browse</h2>
           <p className="mt-2 text-rb-muted">
-            Published opportunities are currently available to signed-in ResearchBridge
-            users. Sign in with your invited student or professor account.
-            {publicSignupEnabled() ? " You can also create a student account." : " Need access? Request an invitation from the team."}
+            Published opportunities are available to signed-in ResearchBridge users.
+            {publicSignupEnabled() ? " Sign in, or create a student account." : " Sign in with your ResearchBridge account."}
           </p>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <Link href="/sign-in" className={`justify-center ${primaryButtonClass}`}>
               Sign in
             </Link>
-            <Link href={publicSignupEnabled() ? "/sign-up" : "/access"} className={`justify-center ${secondaryButtonClass}`}>
-              {publicSignupEnabled() ? "Create a student account" : "Request an invitation"}
-            </Link>
+            {publicSignupEnabled() ? (
+              <Link href="/sign-up" className={`justify-center ${secondaryButtonClass}`}>
+                Create a student account
+              </Link>
+            ) : null}
           </div>
         </section>
       );

@@ -69,12 +69,14 @@ export default function AuthCallbackPage() {
       <AuthShell
         caption="Email confirmation"
         footer={
-          <>
-            Need an account?{" "}
-            <Link href={publicSignupEnabled() ? "/sign-up" : "/access"} className={authStyles.textLink}>
-              {publicSignupEnabled() ? "Create one" : "Request an invitation"}
-            </Link>
-          </>
+          publicSignupEnabled() ? (
+            <>
+              Need an account?{" "}
+              <Link href="/sign-up" className={authStyles.textLink}>
+                Create one
+              </Link>
+            </>
+          ) : undefined
         }
       >
         <h1 className="font-serif text-3xl font-black tracking-tight text-rb-ink">

@@ -43,12 +43,20 @@ export function AuthNav({ variant = "compact" }: AuthNavProps) {
   const signedOutActions =
     variant === "home" ? (
       <>
-        <Link href="/sign-in" className={textActionClass.home}>
-          Sign in
-        </Link>
-        <Link href={publicSignupEnabled() ? "/sign-up" : "/access"} className={homeCtaClass}>
-          {publicSignupEnabled() ? "Get started" : "Request access"}
-        </Link>
+        {publicSignupEnabled() ? (
+          <>
+            <Link href="/sign-in" className={textActionClass.home}>
+              Sign in
+            </Link>
+            <Link href="/sign-up" className={homeCtaClass}>
+              Get started
+            </Link>
+          </>
+        ) : (
+          <Link href="/sign-in" className={homeCtaClass}>
+            Sign in
+          </Link>
+        )}
       </>
     ) : (
       <Link href="/sign-in" className={textActionClass.compact}>

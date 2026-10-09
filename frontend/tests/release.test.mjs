@@ -12,13 +12,17 @@ for (const [name, enabled] of [["self signup", publicSignupEnabled], ["resume de
   });
 }
 
-test("invitation email uses the approved team mailbox", () => {
+test("opportunity question email uses the approved team mailbox", () => {
   assert.equal(PILOT_CONTACT_EMAIL, "TheResearchAmbassadors@wave.tulane.edu");
-  const url = new URL(pilotEmailHref());
+  const url = new URL(pilotEmailHref("Coastal sediment lab"));
   assert.equal(url.protocol, "mailto:");
   assert.equal(url.pathname, PILOT_CONTACT_EMAIL);
-  assert.equal(url.searchParams.get("subject"), "ResearchBridge pilot invitation request");
-  assert.match(url.searchParams.get("body"), /request access/);
+  assert.equal(url.searchParams.get("subject"), "ResearchBridge opportunity: Coastal sediment lab");
+  assert.doesNotMatch(url.searchParams.get("body"), /request access/i);
+});
+
+test("blank opportunity titles still produce a labelled question email", () => {
+  assert.equal(new URL(pilotEmailHref(" \n ")).searchParams.get("subject"), "ResearchBridge opportunity: Untitled opportunity");
 });
 
 test("opportunity title is encoded and cannot add an email recipient or header", () => {

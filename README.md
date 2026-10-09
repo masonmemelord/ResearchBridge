@@ -1,6 +1,5 @@
 # ResearchBridge
 An AI-assisted research discovery platform connecting students with professors and opportunities based on interests, skills, and academic fit—starting at Tulane and built to scale across universities.
-*Updates will be pushed every week on Saturday*
 
 # Development Stack
 **Frontend:**

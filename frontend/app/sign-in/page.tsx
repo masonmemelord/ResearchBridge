@@ -107,15 +107,19 @@ export default function SignInPage() {
     <AuthShell
       caption="Secure sign in"
       footer={
-        <>
-          Need an account?{" "}
-          <Link href={publicSignupEnabled() ? "/sign-up" : "/access"} className={authStyles.textLink}>
-            {publicSignupEnabled() ? "Create an account" : "Request an invitation"}
-          </Link>
-          <span className="mt-1 block text-xs leading-5">
-            Pilot accounts are set up by the ResearchBridge team.
-          </span>
-        </>
+        publicSignupEnabled() ? (
+          <>
+            Students: need an account?{" "}
+            <Link href="/sign-up" className={authStyles.textLink}>
+              Create one
+            </Link>
+            <span className="mt-1 block text-xs leading-5">
+              Professor accounts are set up by the ResearchBridge team.
+            </span>
+          </>
+        ) : (
+          "Accounts are set up by the ResearchBridge team."
+        )
       }
     >
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-rb-brand">Welcome back</p>
