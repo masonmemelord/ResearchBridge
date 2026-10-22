@@ -1078,13 +1078,14 @@ by the frontend.
 
 ### To-Do
 
-- [ ] **Set up Resend for sign-up and emails.** Use Resend as the custom SMTP
+1. **Add professor side logic** Learning outcomes, Time commitment, Compensation(Y/N), Expected duties/requirements
+2. **Set up Resend for sign-up and emails.** Use Resend as the custom SMTP
   provider in hosted Supabase (**Authentication → Emails → SMTP Settings**) with
   a verified sending domain. Then finish the rest of the hosted sign-up
   checklist above: the `{{ .Token }}` "Confirm signup" template, Site URL, and
   redirect URLs. Re-test with a fresh inbox before opening the production
   sign-up gate.
-- [ ] **Finish résumé scanning logic.** The feature is still local-only and held
+3. **UI changes.**
+4. **Finish résumé scanning logic.** The feature is still local-only and held
   out of hosted migrations (see `backend/supabase/held/README.md` and the
   "Before production" notes in **Local AI résumé demo**).
-- [ ] **UI changes.**
