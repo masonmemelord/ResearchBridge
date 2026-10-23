@@ -774,6 +774,74 @@ profiles read policy, and enabling student signup once hosted email works.
   readers to copy it.
 - No commits, pushes, deployments, or hosted setting changes were made.
 
+## 2026-10-23 — Security hotfix: Next.js 16.4.2, sharp, source-map-js
+
+**Completed changes** (branch `fix/next-16.4.2-security`, built in a separate
+worktree from `main` at `9847d40` so the uncommitted opportunity-details work
+stays out of this change):
+
+- `frontend/package.json`: `next` and `eslint-config-next` 16.3.8 → 16.4.2
+  (exact pins, as before).
+- `frontend/package-lock.json`: `sharp` 0.35.4 → 0.35.5 (required by
+  `next@16.4.2`) with its `@img/*` platform packages and libvips 1.3.3 → 1.3.4;
+  `source-map-js` 1.2.1 → 1.2.2 via `npm update source-map-js` (in range).
+  No other package versions changed. `npm audit fix --force` was not used.
+
+**Advisories addressed (production dependencies):**
+
+- `next`: GHSA-2464-fhr4-w9xw (critical, unauthenticated RCE in the Image
+  Optimization API with SVGs), GHSA-673q-mjm6-r5xr (RCE in `use cache`
+  functions returning typed arrays), GHSA-p3m5-59mp-jv5r (Server Actions DoS).
+- `sharp`: GHSA-wq5f-xc86-pv6w (high, librsvg CVE-2026-96889).
+- `source-map-js`: GHSA-68fv-2mgg-jv7q (high, event-loop DoS).
+
+**Verification (local; not deployed):**
+
+- Before: `npm audit --omit=dev` 3 findings (1 critical, 2 high); full audit
+  9 (1 critical, 8 high). After: `npm audit --omit=dev` **0 vulnerabilities**;
+  full audit 6 high, all in the dev-only ESLint chain
+  (`eslint-config-next`, `@next/eslint-plugin-next`, `fast-glob`,
+  `micromatch`, `braces`, `brace-expansion`), unchanged from before. npm's
+  suggested fix for those downgrades `eslint-config-next` to 14.x, so it was
+  not applied.
+- `npm ci` from the new lockfile, then `npm run release:check`: exit 0 (lint,
+  type check, auth 12, résumé 10, release 9, applications 8, admin 6 tests,
+  audit, production build on Next.js 16.4.2).
+- Pre-existing gap found: on a fresh checkout, `release:check` fails its type
+  check (4 errors) until `next typegen` or a build has generated
+  `next-env.d.ts` and `.next/types`. Reproduced on unmodified `main` with
+  16.3.8, so it is not caused by this upgrade. Not changed here.
+- `next start` smoke test (hosted Supabase settings): `/`, `/opportunities`,
+  `/sign-in`, `/professor/opportunities`, `/professor/opportunities/new`,
+  `/admin`, `/verify-email`, `/auth/callback` 200; `/sign-up` and `/access`
+  307 to `/sign-in`; résumé page and API 404. The image optimizer served the
+  logo (200 PNG, via the upgraded `sharp`) and refused an SVG (400).
+- Headless Chrome on the six main routes at 1280px and 375px: client reports
+  `window.next.version` 16.4.2, no uncaught exceptions, no horizontal
+  overflow.
+- Signed-in flows on a 16.4.2 build pointed at **local** Supabase (synthetic
+  professor, student, and admin; deleted afterward): 13/13 checks passed —
+  professor publishes, student browses and applies, professor sees the
+  applicant, admin sees People and Postings and closes the posting, closed
+  posting is hidden from students.
+- Production before the change: `researchbridge-omega.vercel.app` serves
+  `9847d40` and its client chunk contains `window.next={version:"16.3.8"`.
+
+**Rollback plan:**
+
+- Fastest: in Vercel, promote the previous production deployment
+  (`9847d40`, `researchbridge-96yr3ilvk`) with Instant Rollback.
+- In Git: `git revert -m 1 <merge commit>` on a branch, open a PR, and merge.
+  This restores 16.3.8 and the critical advisory, so only roll back for a
+  confirmed regression, and re-apply a fix promptly.
+- No database migrations or environment variables are involved.
+
+**After deployment (needs approval first):**
+
+- Confirm the live client chunk reports `window.next={version:"16.4.2"`, then
+  sign in as a professor, student, and admin and repeat the main flows.
+- No merge, deployment, or hosted setting changes were made.
+
 
 The schema (enums, `profiles`, `departments`, `opportunities`, constraints, indexes, triggers, and RLS policies) lives in `backend/supabase/migrations/`. Department seed data lives in `backend/supabase/seed.sql`.
 
