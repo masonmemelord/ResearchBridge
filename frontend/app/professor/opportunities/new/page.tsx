@@ -7,6 +7,21 @@ import { ProfessorPageShell } from "../../../../components/professor/ProfessorPa
 import { PROFESSOR_ROUTES, fetchProfileRole } from "../../../../lib/auth/profile";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/client";
 import { draftSavingEnabled } from "../../../../lib/release";
+import {
+  DETAIL_TEXT_MAX,
+  DETAIL_TEXT_MIN,
+  PAY_PERIODS,
+  WEEKLY_HOURS_MAX,
+  WEEKLY_HOURS_MIN,
+  compensationLabel,
+  detailTextError,
+  isPayPeriod,
+  parsePayAmount,
+  parseWeeklyHours,
+  weeklyHoursLabel,
+  type PayPeriod,
+  type WeeklyHours,
+} from "../../../../lib/opportunities/details";
 
 /* -------------------------------------------------------------------------- */
 /* Domain types and reference data                                            */
@@ -27,6 +42,15 @@ type Opportunity = {
   durationSemesters: 1 | 2 | 3 | 4;
   eligibleClassYears: ("Freshman" | "Sophomore" | "Junior" | "Senior")[];
   positionsAvailable: number;
+  /** What students will learn or gain. */
+  learningOutcomes: string;
+  /** Day-to-day duties and the skills students bring or will use. */
+  dutiesAndSkills: string;
+  weeklyHours: WeeklyHours;
+  isPaid: boolean;
+  /** Dollars per payPeriod; null when unpaid. */
+  payAmount: number | null;
+  payPeriod: PayPeriod | null;
   status: "draft" | "published";
   createdAt: string;
 };
@@ -128,6 +152,15 @@ type FormValues = {
   duration: string;
   classYears: ClassYear[];
   positions: string;
+  learningOutcomes: string;
+  dutiesAndSkills: string;
+  hoursFrom: string;
+  /** Optional upper end of a weekly hours range. */
+  hoursTo: string;
+  /** Unanswered until the professor picks Yes or No. */
+  isPaid: "" | "yes" | "no";
+  payAmount: string;
+  payPeriod: string;
 };
 
 type FieldName = keyof FormValues;
@@ -143,19 +176,33 @@ const EMPTY_FORM: FormValues = {
   duration: "",
   classYears: [],
   positions: "1",
+  learningOutcomes: "",
+  dutiesAndSkills: "",
+  hoursFrom: "",
+  hoursTo: "",
+  isPaid: "",
+  payAmount: "",
+  payPeriod: "",
 };
 
 /** Order used for the error summary and for focusing the first invalid field. */
 const FIELD_ORDER: FieldName[] = [
   "title",
   "description",
+  "learningOutcomes",
+  "dutiesAndSkills",
   "school",
   "department",
   "preferredMajors",
   "keywords",
   "duration",
+  "hoursFrom",
+  "hoursTo",
   "classYears",
   "positions",
+  "isPaid",
+  "payAmount",
+  "payPeriod",
 ];
 
 const FIELD_LABELS: Record<FieldName, string> = {
@@ -168,6 +215,13 @@ const FIELD_LABELS: Record<FieldName, string> = {
   duration: "Research duration",
   classYears: "Eligible student class years",
   positions: "Positions available",
+  learningOutcomes: "Learning outcomes",
+  dutiesAndSkills: "Expected duties and skills",
+  hoursFrom: "Time commitment",
+  hoursTo: "Time commitment (upper hours)",
+  isPaid: "Compensation",
+  payAmount: "Pay amount",
+  payPeriod: "Pay period",
 };
 
 /** Element that receives focus when a field is invalid. */
@@ -181,6 +235,13 @@ const FIELD_FOCUS_IDS: Record<FieldName, string> = {
   duration: "duration",
   classYears: "class-year-freshman",
   positions: "positions",
+  learningOutcomes: "learning-outcomes",
+  dutiesAndSkills: "duties-and-skills",
+  hoursFrom: "hours-from",
+  hoursTo: "hours-to",
+  isPaid: "is-paid-yes",
+  payAmount: "pay-amount",
+  payPeriod: "pay-period",
 };
 
 type ListLimits = {
@@ -278,6 +339,20 @@ function validate(values: FormValues): FormErrors {
     errors.positions = "Enter a whole number of positions.";
   } else if (positions < POSITIONS_MIN || positions > POSITIONS_MAX) {
     errors.positions = `Enter a number between ${POSITIONS_MIN} and ${POSITIONS_MAX}.`;
+  }
+
+  errors.learningOutcomes = detailTextError(values.learningOutcomes, "what students will learn or gain");
+  errors.dutiesAndSkills = detailTextError(values.dutiesAndSkills, "the expected duties and skills");
+
+  const hours = parseWeeklyHours(values.hoursFrom, values.hoursTo);
+  if (!hours.ok) errors[hours.field === "from" ? "hoursFrom" : "hoursTo"] = hours.message;
+
+  if (!values.isPaid) {
+    errors.isPaid = "Choose whether this position is paid.";
+  } else if (values.isPaid === "yes") {
+    const amount = parsePayAmount(values.payAmount);
+    if (!amount.ok) errors.payAmount = amount.message;
+    if (!isPayPeriod(values.payPeriod)) errors.payPeriod = "Choose what the amount covers.";
   }
 
   return errors;
@@ -391,6 +466,36 @@ function Field({ id, label, hint, error, optional = false, meta, children }: Fie
   );
 }
 
+function TextCounter({ value }: { value: string }) {
+  const length = value.trim().length;
+  return (
+    <span
+      className={
+        "text-[13px] font-semibold tabular-nums " +
+        (length > DETAIL_TEXT_MAX ? "text-[#8f2d1c]" : "text-rb-muted")
+      }
+    >
+      {length} / {DETAIL_TEXT_MAX}
+    </span>
+  );
+}
+
+function RequiredLegend({ children }: { children: ReactNode }) {
+  return (
+    <legend className="mb-2 text-sm font-bold tracking-tight text-rb-ink">
+      {children}
+      <span aria-hidden="true" className="ml-1 text-rb-brand">
+        *
+      </span>
+      <span className="sr-only"> (required)</span>
+    </legend>
+  );
+}
+
+function fieldsetDescription(hintId: string, errorId: string, hasError: boolean) {
+  return hasError ? `${errorId} ${hintId}` : hintId;
+}
+
 function TagList({ items, label }: { items: readonly string[]; label: string }) {
   return (
     <ul aria-label={label} className="mt-2 flex flex-wrap gap-2">
@@ -468,8 +573,11 @@ function NewOpportunityWorkspace() {
     setSaveError(null);
 
     const firstInvalid = FIELD_ORDER.find((field) => nextErrors[field]);
-    // The isSchool check also narrows the type for the object below.
-    if (firstInvalid || !isSchool(values.school)) {
+    const hours = parseWeeklyHours(values.hoursFrom, values.hoursTo);
+    const payAmount = values.isPaid === "yes" ? parsePayAmount(values.payAmount) : null;
+    const payPeriod = values.isPaid === "yes" && isPayPeriod(values.payPeriod) ? values.payPeriod : null;
+    // These checks repeat validate() so TypeScript can narrow the values below.
+    if (firstInvalid || !isSchool(values.school) || !hours.ok || (payAmount && !payAmount.ok)) {
       focusField(firstInvalid ?? "school");
       return;
     }
@@ -484,6 +592,12 @@ function NewOpportunityWorkspace() {
       durationSemesters: Number(values.duration) as DurationSemesters,
       eligibleClassYears: values.classYears,
       positionsAvailable: Number(values.positions),
+      learningOutcomes: values.learningOutcomes.trim(),
+      dutiesAndSkills: values.dutiesAndSkills.trim(),
+      weeklyHours: hours.value,
+      isPaid: values.isPaid === "yes",
+      payAmount: payAmount?.ok ? payAmount.value : null,
+      payPeriod,
       status,
     };
 
@@ -530,6 +644,13 @@ function NewOpportunityWorkspace() {
             (year) => CLASS_YEAR_TO_DATABASE[year],
           ),
           positions_available: opportunityInput.positionsAvailable,
+          learning_outcomes: opportunityInput.learningOutcomes,
+          duties_and_skills: opportunityInput.dutiesAndSkills,
+          weekly_hours_min: opportunityInput.weeklyHours.min,
+          weekly_hours_max: opportunityInput.weeklyHours.max,
+          is_paid: opportunityInput.isPaid,
+          pay_amount: opportunityInput.payAmount,
+          pay_period: opportunityInput.payPeriod,
           title: opportunityInput.title,
           description: opportunityInput.description,
           status: opportunityInput.status,
@@ -726,6 +847,42 @@ function NewOpportunityWorkspace() {
                     {saved.opportunity.positionsAvailable}
                   </dd>
                 </div>
+                <div>
+                  <dt className="text-xs font-bold uppercase tracking-[0.14em] text-rb-muted">
+                    Time commitment
+                  </dt>
+                  <dd className="mt-1 text-[15px] font-semibold text-rb-ink">
+                    {weeklyHoursLabel(saved.opportunity.weeklyHours.min, saved.opportunity.weeklyHours.max)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-bold uppercase tracking-[0.14em] text-rb-muted">
+                    Compensation
+                  </dt>
+                  <dd className="mt-1 text-[15px] font-semibold text-rb-ink">
+                    {compensationLabel(
+                      saved.opportunity.isPaid,
+                      saved.opportunity.payAmount,
+                      saved.opportunity.payPeriod,
+                    )}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-bold uppercase tracking-[0.14em] text-rb-muted">
+                    Learning outcomes
+                  </dt>
+                  <dd className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6 text-rb-ink">
+                    {saved.opportunity.learningOutcomes}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-bold uppercase tracking-[0.14em] text-rb-muted">
+                    Expected duties and skills
+                  </dt>
+                  <dd className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6 text-rb-ink">
+                    {saved.opportunity.dutiesAndSkills}
+                  </dd>
+                </div>
               </dl>
 
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -829,7 +986,7 @@ function NewOpportunityWorkspace() {
               <Field
                 id="description"
                 label={FIELD_LABELS.description}
-                hint="Cover the research question, weekly responsibilities, helpful skills, and faculty-approved contact or application steps."
+                hint="Cover the research question, the project's goals, and any faculty-approved contact or application steps. Learning outcomes, duties, and skills have their own fields below."
                 error={visibleErrors.description}
                 meta={
                   <span className="text-[13px] font-semibold tabular-nums text-rb-muted">
@@ -849,6 +1006,52 @@ function NewOpportunityWorkspace() {
                     aria-invalid={invalid}
                     placeholder="We are building models that flag early signs of disease from routine clinical data. Students will help clean datasets, run experiments, and present weekly findings."
                     className={`${controlState(invalid)} min-h-[150px] resize-y`}
+                  />
+                )}
+              </Field>
+
+              <Field
+                id="learning-outcomes"
+                label={FIELD_LABELS.learningOutcomes}
+                hint={`What students will learn or gain, such as methods, tools, or a poster or publication. ${DETAIL_TEXT_MIN} to ${DETAIL_TEXT_MAX} characters.`}
+                error={visibleErrors.learningOutcomes}
+                meta={<TextCounter value={values.learningOutcomes} />}
+              >
+                {({ describedBy, invalid }) => (
+                  <textarea
+                    id="learning-outcomes"
+                    name="learningOutcomes"
+                    required
+                    rows={4}
+                    value={values.learningOutcomes}
+                    onChange={(event) => update("learningOutcomes", event.target.value)}
+                    aria-describedby={describedBy}
+                    aria-invalid={invalid}
+                    placeholder="Students will learn to design experiments, analyze imaging data in Python, and present findings at lab meetings."
+                    className={`${controlState(invalid)} min-h-[110px] resize-y`}
+                  />
+                )}
+              </Field>
+
+              <Field
+                id="duties-and-skills"
+                label={FIELD_LABELS.dutiesAndSkills}
+                hint={`Day-to-day duties, plus skills students should bring or will use. Note anything required versus helpful. ${DETAIL_TEXT_MIN} to ${DETAIL_TEXT_MAX} characters.`}
+                error={visibleErrors.dutiesAndSkills}
+                meta={<TextCounter value={values.dutiesAndSkills} />}
+              >
+                {({ describedBy, invalid }) => (
+                  <textarea
+                    id="duties-and-skills"
+                    name="dutiesAndSkills"
+                    required
+                    rows={4}
+                    value={values.dutiesAndSkills}
+                    onChange={(event) => update("dutiesAndSkills", event.target.value)}
+                    aria-describedby={describedBy}
+                    aria-invalid={invalid}
+                    placeholder="Prepare samples, run microscopy sessions, and keep a lab notebook. Helpful: intro biology lab experience. Required: reliable weekly attendance."
+                    className={`${controlState(invalid)} min-h-[110px] resize-y`}
                   />
                 )}
               </Field>
@@ -1003,6 +1206,75 @@ function NewOpportunityWorkspace() {
                     </select>
                   )}
                 </Field>
+
+                <fieldset
+                  aria-describedby={fieldsetDescription(
+                    "weekly-hours-hint",
+                    "weekly-hours-error",
+                    Boolean(visibleErrors.hoursFrom || visibleErrors.hoursTo),
+                  )}
+                >
+                  <RequiredLegend>{FIELD_LABELS.hoursFrom} (hours per week)</RequiredLegend>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="hours-from" className="mb-1 block text-[13px] font-semibold text-rb-muted">
+                        Hours
+                      </label>
+                      <input
+                        id="hours-from"
+                        name="hoursFrom"
+                        type="number"
+                        required
+                        inputMode="numeric"
+                        min={WEEKLY_HOURS_MIN}
+                        max={WEEKLY_HOURS_MAX}
+                        step={1}
+                        value={values.hoursFrom}
+                        onChange={(event) => update("hoursFrom", event.target.value)}
+                        aria-invalid={Boolean(visibleErrors.hoursFrom)}
+                        aria-describedby={fieldsetDescription(
+                          "weekly-hours-hint",
+                          "weekly-hours-error",
+                          Boolean(visibleErrors.hoursFrom || visibleErrors.hoursTo),
+                        )}
+                        placeholder="8"
+                        className={controlState(Boolean(visibleErrors.hoursFrom))}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="hours-to" className="mb-1 block text-[13px] font-semibold text-rb-muted">
+                        Up to (optional)
+                      </label>
+                      <input
+                        id="hours-to"
+                        name="hoursTo"
+                        type="number"
+                        inputMode="numeric"
+                        min={WEEKLY_HOURS_MIN}
+                        max={WEEKLY_HOURS_MAX}
+                        step={1}
+                        value={values.hoursTo}
+                        onChange={(event) => update("hoursTo", event.target.value)}
+                        aria-invalid={Boolean(visibleErrors.hoursTo)}
+                        aria-describedby={fieldsetDescription(
+                          "weekly-hours-hint",
+                          "weekly-hours-error",
+                          Boolean(visibleErrors.hoursFrom || visibleErrors.hoursTo),
+                        )}
+                        placeholder="10"
+                        className={controlState(Boolean(visibleErrors.hoursTo))}
+                      />
+                    </div>
+                  </div>
+                  <FieldHint id="weekly-hours-hint">
+                    {`Whole hours from ${WEEKLY_HOURS_MIN} to ${WEEKLY_HOURS_MAX}. Fill in “Up to” only for a range, such as 8 to 10.`}
+                  </FieldHint>
+                  {visibleErrors.hoursFrom || visibleErrors.hoursTo ? (
+                    <FieldError id="weekly-hours-error">
+                      {visibleErrors.hoursFrom ?? visibleErrors.hoursTo}
+                    </FieldError>
+                  ) : null}
+                </fieldset>
               </div>
 
               <fieldset
@@ -1085,6 +1357,107 @@ function NewOpportunityWorkspace() {
                   )}
                 </Field>
               </div>
+
+              <fieldset
+                aria-describedby={fieldsetDescription("is-paid-hint", "is-paid-error", Boolean(visibleErrors.isPaid))}
+              >
+                <RequiredLegend>{FIELD_LABELS.isPaid}: is this position paid?</RequiredLegend>
+                <div className="grid gap-3 sm:max-w-md sm:grid-cols-2">
+                  {(
+                    [
+                      { value: "yes", label: "Yes, paid" },
+                      { value: "no", label: "No, unpaid" },
+                    ] as const
+                  ).map((option) => {
+                    const checked = values.isPaid === option.value;
+                    return (
+                      <label
+                        key={option.value}
+                        htmlFor={`is-paid-${option.value}`}
+                        className={
+                          "flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-[15px] font-semibold transition hover:border-rb-accent has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[rgba(0,103,71,0.22)] " +
+                          (checked
+                            ? "border-rb-brand bg-rb-tag-surface text-rb-ink"
+                            : visibleErrors.isPaid
+                              ? "border-[#b03320] bg-[#fdf1ed] text-rb-ink"
+                              : "border-rb-soft-border bg-white/75 text-rb-ink")
+                        }
+                      >
+                        <input
+                          id={`is-paid-${option.value}`}
+                          type="radio"
+                          name="isPaid"
+                          value={option.value}
+                          checked={checked}
+                          onChange={() => update("isPaid", option.value)}
+                          className="h-[18px] w-[18px] shrink-0 accent-[#006747]"
+                        />
+                        {option.label}
+                      </label>
+                    );
+                  })}
+                </div>
+                <FieldHint id="is-paid-hint">
+                  Students see this on the listing. Choose No for volunteer or course-credit positions.
+                </FieldHint>
+                {visibleErrors.isPaid ? (
+                  <FieldError id="is-paid-error">{visibleErrors.isPaid}</FieldError>
+                ) : null}
+
+                {values.isPaid === "yes" ? (
+                  <div className="mt-5 grid gap-7 sm:grid-cols-2">
+                    <Field
+                      id="pay-amount"
+                      label="Pay amount (US dollars)"
+                      hint="For example 15 or 15.50."
+                      error={visibleErrors.payAmount}
+                    >
+                      {({ describedBy, invalid }) => (
+                        <input
+                          id="pay-amount"
+                          name="payAmount"
+                          type="text"
+                          required
+                          inputMode="decimal"
+                          autoComplete="off"
+                          value={values.payAmount}
+                          onChange={(event) => update("payAmount", event.target.value)}
+                          aria-describedby={describedBy}
+                          aria-invalid={invalid}
+                          placeholder="15.00"
+                          className={controlState(invalid)}
+                        />
+                      )}
+                    </Field>
+                    <Field
+                      id="pay-period"
+                      label="Amount covers"
+                      hint="Whether the amount is hourly, per semester, or a one-time total."
+                      error={visibleErrors.payPeriod}
+                    >
+                      {({ describedBy, invalid }) => (
+                        <select
+                          id="pay-period"
+                          name="payPeriod"
+                          required
+                          value={values.payPeriod}
+                          onChange={(event) => update("payPeriod", event.target.value)}
+                          aria-describedby={describedBy}
+                          aria-invalid={invalid}
+                          className={controlState(invalid)}
+                        >
+                          <option value="">Select a pay period</option>
+                          {PAY_PERIODS.map((period) => (
+                            <option key={period.value} value={period.value}>
+                              {period.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                  </div>
+                ) : null}
+              </fieldset>
             </div>
 
             <p role="status" className="sr-only">

@@ -774,6 +774,86 @@ profiles read policy, and enabling student signup once hosted email works.
   readers to copy it.
 - No commits, pushes, deployments, or hosted setting changes were made.
 
+## 2026-10-23 — Professor form: learning outcomes, hours, compensation, duties
+
+**Completed changes:**
+
+- Reviewer request: the professor posting form now asks for **learning
+  outcomes**, **time commitment** (hours per week, a single number or a range),
+  **compensation** (Yes/No; if Yes, a dollar amount and whether it is per hour,
+  per semester, or a one-time total), and **expected duties and skills**. All
+  four are required for new postings. Students see them on each listing card,
+  and search now also matches learning outcomes and duties.
+- Migration `backend/supabase/migrations/20261023120000_opportunity_details.sql`
+  adds `learning_outcomes`, `weekly_hours_min`, `weekly_hours_max`, `is_paid`,
+  `pay_amount` (`numeric(9,2)`), `pay_period` (new enum
+  `compensation_period`: `hour`, `semester`, `total`), and `duties_and_skills`.
+  Check constraints: text 20–1,500 characters; hours 1–40 with an optional
+  maximum not below the minimum; a paid listing must have an amount
+  ($0.01–$100,000) and a period, and an unpaid or unanswered one has neither.
+  RLS is unchanged (professors still write only their own rows).
+- **Design decision:** the columns are nullable and "required" is enforced by
+  the form, not the database. Existing hosted listings have no values, and a
+  `NOT VALID` check would still run when an admin closes one of them. Old
+  listings show "Not listed" for hours and compensation and hide the empty
+  text sections.
+- **Design decision:** compensation stores a pay period with the amount,
+  because "$15" and "$3,000" mean different things to a student. Drop or
+  rename the period options if reviewers prefer.
+- Shared validation and display labels live in
+  `frontend/lib/opportunities/details.ts`. Updated
+  `frontend/app/professor/opportunities/new/page.tsx` (fields, validation,
+  error summary, insert, confirmation), `frontend/lib/opportunities/published.ts`
+  (columns, normalization, search text),
+  `frontend/components/opportunities/OpportunityCard.tsx`, and the search hint in
+  `frontend/components/opportunities/OpportunityFilters.tsx`.
+- Tests: `backend/supabase/tests/verify_opportunity_details.sql` (21 assertions)
+  and `frontend/tests/opportunity-details.test.mjs` (5 tests, new
+  `test:opportunities` script, added to `release:check`).
+
+**Verification (local only; nothing deployed or pushed to hosted):**
+
+- Applied the migration locally with `supabase migration up --local` (no
+  reset). `supabase test db --local`: 116 assertions across 5 files passed.
+  `supabase db lint --local --level warning`: no schema errors.
+- `npm run lint`, `tsc --noEmit --incremental false`, and all unit tests
+  passed: auth 12, résumé 10, release 9, applications 8, admin 6, opportunity
+  details 5. `npm run build` passed.
+- Browser workflow against local Supabase (headless Chrome over DevTools,
+  synthetic professor and student, deleted afterward): 32/32 checks passed.
+  Covered the empty-submit error summary and its links, focus on the first
+  invalid field, the paid radio group by keyboard (Space and arrow keys),
+  pay fields shown only for paid positions, hours-range and amount errors,
+  publishing, the saved database row, the confirmation summary, the student
+  card, search on new text, and no horizontal overflow at 375px.
+- `supabase db push --dry-run` (read-only): hosted would receive only this
+  migration.
+- **`npm audit --omit=dev` fails** with 3 advisories, including a new
+  **critical** one in `next` 16.3.8 (GHSA-2464-fhr4-w9xw, unauthenticated RCE
+  in the Image Optimization API with SVGs; also GHSA-673q-mjm6-r5xr and
+  GHSA-p3m5-59mp-jv5r). The fix is `next` 16.4.2. The production site runs the
+  affected version. `sharp` and `source-map-js` advisories remain from
+  2026-10-08. The lockfile was not changed in this session.
+
+**Release order (needs a person):**
+
+1. `supabase db push` from `backend/` **before** deploying this frontend. The
+   student page now requests the new columns, so deploying first would break
+   browsing until the migration lands.
+2. Deploy, then publish a test listing on the live site and view it as a
+   student.
+
+**Follow-ups:**
+
+- Upgrade `next` to 16.4.2 (and run `npm audit fix` for `sharp` and
+  `source-map-js`) in a separate, reviewed change, soon.
+- Professors still cannot edit their postings, so listings published before
+  this change cannot gain the new details except through SQL. Consider an edit
+  flow, or ask those professors to re-post.
+- Possible next step: a "Paid only" filter and an hours filter on the student
+  page, now that the data is structured.
+- No commits, pushes, deployments, or hosted setting changes were made.
+
 
 The schema (enums, `profiles`, `departments`, `opportunities`, constraints, indexes, triggers, and RLS policies) lives in `backend/supabase/migrations/`. Department seed data lives in `backend/supabase/seed.sql`.
 
@@ -806,7 +886,7 @@ supabase link --project-ref <your-project-ref>
 supabase db push        # applies any migrations not yet on the remote database
 ```
 
-**Verifying the RLS policies and constraints:** `backend/supabase/tests/verify_opportunities_rls.sql` proves the required access rules and frontend-aligned constraints. `verify_student_self_signup.sql` proves the sign-up trigger only ever creates student profiles. `verify_applications_rls.sql` proves who can apply and who can see applications. `verify_admin_tier.sql` proves what admins can and cannot do. It runs in a transaction that's rolled back at the end, so it's safe to run repeatedly:
+**Verifying the RLS policies and constraints:** `backend/supabase/tests/verify_opportunities_rls.sql` proves the required access rules and frontend-aligned constraints. `verify_student_self_signup.sql` proves the sign-up trigger only ever creates student profiles. `verify_applications_rls.sql` proves who can apply and who can see applications. `verify_admin_tier.sql` proves what admins can and cannot do. `verify_opportunity_details.sql` proves the learning-outcome, hours, compensation, and duties constraints. Each runs in a transaction that's rolled back at the end, so it's safe to run repeatedly:
 
 ```bash
 cd backend
@@ -1079,6 +1159,7 @@ by the frontend.
 ### To-Do
 
 1. **Add professor side logic** Learning outcomes, Time commitment, Compensation(Y/N), Expected duties/requirements
+   — built and tested locally on 2026-10-23; push the migration, then deploy.
 2. **Set up Resend for sign-up and emails.** Use Resend as the custom SMTP
   provider in hosted Supabase (**Authentication → Emails → SMTP Settings**) with
   a verified sending domain. Then finish the rest of the hosted sign-up
