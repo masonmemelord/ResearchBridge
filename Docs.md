@@ -854,6 +854,74 @@ profiles read policy, and enabling student signup once hosted email works.
   page, now that the data is structured.
 - No commits, pushes, deployments, or hosted setting changes were made.
 
+## 2026-10-23 — Security hotfix: Next.js 16.4.2, sharp, source-map-js
+
+**Completed changes** (branch `fix/next-16.4.2-security`, built in a separate
+worktree from `main` at `9847d40` so the uncommitted opportunity-details work
+stays out of this change):
+
+- `frontend/package.json`: `next` and `eslint-config-next` 16.3.8 → 16.4.2
+  (exact pins, as before).
+- `frontend/package-lock.json`: `sharp` 0.35.4 → 0.35.5 (required by
+  `next@16.4.2`) with its `@img/*` platform packages and libvips 1.3.3 → 1.3.4;
+  `source-map-js` 1.2.1 → 1.2.2 via `npm update source-map-js` (in range).
+  No other package versions changed. `npm audit fix --force` was not used.
+
+**Advisories addressed (production dependencies):**
+
+- `next`: GHSA-2464-fhr4-w9xw (critical, unauthenticated RCE in the Image
+  Optimization API with SVGs), GHSA-673q-mjm6-r5xr (RCE in `use cache`
+  functions returning typed arrays), GHSA-p3m5-59mp-jv5r (Server Actions DoS).
+- `sharp`: GHSA-wq5f-xc86-pv6w (high, librsvg CVE-2026-96889).
+- `source-map-js`: GHSA-68fv-2mgg-jv7q (high, event-loop DoS).
+
+**Verification (local; not deployed):**
+
+- Before: `npm audit --omit=dev` 3 findings (1 critical, 2 high); full audit
+  9 (1 critical, 8 high). After: `npm audit --omit=dev` **0 vulnerabilities**;
+  full audit 6 high, all in the dev-only ESLint chain
+  (`eslint-config-next`, `@next/eslint-plugin-next`, `fast-glob`,
+  `micromatch`, `braces`, `brace-expansion`), unchanged from before. npm's
+  suggested fix for those downgrades `eslint-config-next` to 14.x, so it was
+  not applied.
+- `npm ci` from the new lockfile, then `npm run release:check`: exit 0 (lint,
+  type check, auth 12, résumé 10, release 9, applications 8, admin 6 tests,
+  audit, production build on Next.js 16.4.2).
+- Pre-existing gap found: on a fresh checkout, `release:check` fails its type
+  check (4 errors) until `next typegen` or a build has generated
+  `next-env.d.ts` and `.next/types`. Reproduced on unmodified `main` with
+  16.3.8, so it is not caused by this upgrade. Not changed here.
+- `next start` smoke test (hosted Supabase settings): `/`, `/opportunities`,
+  `/sign-in`, `/professor/opportunities`, `/professor/opportunities/new`,
+  `/admin`, `/verify-email`, `/auth/callback` 200; `/sign-up` and `/access`
+  307 to `/sign-in`; résumé page and API 404. The image optimizer served the
+  logo (200 PNG, via the upgraded `sharp`) and refused an SVG (400).
+- Headless Chrome on the six main routes at 1280px and 375px: client reports
+  `window.next.version` 16.4.2, no uncaught exceptions, no horizontal
+  overflow.
+- Signed-in flows on a 16.4.2 build pointed at **local** Supabase (synthetic
+  professor, student, and admin; deleted afterward): 13/13 checks passed —
+  professor publishes, student browses and applies, professor sees the
+  applicant, admin sees People and Postings and closes the posting, closed
+  posting is hidden from students.
+- Production before the change: `researchbridge-omega.vercel.app` serves
+  `9847d40` and its client chunk contains `window.next={version:"16.3.8"`.
+
+**Rollback plan:**
+
+- Fastest: in Vercel, promote the previous production deployment
+  (`9847d40`, `researchbridge-96yr3ilvk`) with Instant Rollback.
+- In Git: `git revert -m 1 <merge commit>` on a branch, open a PR, and merge.
+  This restores 16.3.8 and the critical advisory, so only roll back for a
+  confirmed regression, and re-apply a fix promptly.
+- No database migrations or environment variables are involved.
+
+**After deployment (needs approval first):**
+
+- Confirm the live client chunk reports `window.next={version:"16.4.2"`, then
+  sign in as a professor, student, and admin and repeat the main flows.
+- No merge, deployment, or hosted setting changes were made.
+
 
 The schema (enums, `profiles`, `departments`, `opportunities`, constraints, indexes, triggers, and RLS policies) lives in `backend/supabase/migrations/`. Department seed data lives in `backend/supabase/seed.sql`.
 
@@ -1170,3 +1238,65 @@ by the frontend.
 4. **Finish résumé scanning logic.** The feature is still local-only and held
   out of hosted migrations (see `backend/supabase/held/README.md` and the
   "Before production" notes in **Local AI résumé demo**).
+
+## 2026-10-24 — Consolidate and verify changes for pushing
+
+**Completed changes:**
+
+- Fetched `origin` and checked branch ancestry. The older schema and frontend
+  branches were already included in `main`; only
+  `fix/next-16.4.2-security` needed integrating with the opportunity-details work.
+- Created `codex/push-ready-opportunity-details` from `main` and committed the
+  existing opportunity form, card, search, validation, migration, and tests as
+  `97d924d`. Merged security commit `ee35e10`, preserving both session entries
+  when resolving the `Docs.md` conflict. Local `main` remains unchanged so the
+  combined branch can follow the README's push-and-PR workflow.
+- Integrated `frontend/package.json` and `frontend/package-lock.json`: Next.js
+  and eslint-config-next 16.4.2, sharp 0.35.5, and source-map-js 1.2.2, while
+  retaining the opportunity test script and release gate.
+- Fixed the documented fresh-checkout release-check failure by generating
+  Next.js declarations with `next typegen` before `tsc` in
+  `frontend/package.json`. Read the installed Next.js TypeScript/CLI guides
+  before changing the check command.
+- Updated `README.md` with the complete check sequence, migration-before-deploy
+  requirement, and the frontend rollback approach (retain the additive columns).
+  This entry records the review and verification; no additional feature code
+  was introduced in this session.
+
+**Verification:**
+
+- `npm ci --no-audit --no-fund`: passed with the merged lockfile.
+- `npm run release:check`: passed, including lint, route type generation,
+  TypeScript, 50 unit tests (auth 12, résumé 10, release 9, applications 8,
+  admin 6, opportunity details 5), runtime audit, and the default Turbopack
+  production build on Next.js 16.4.2. The first sandboxed attempt reached
+  audit but could not resolve the registry; the subsequent complete run with
+  network access exited successfully.
+- Fresh-source-copy check without `.next` or `next-env.d.ts`:
+  `next typegen` followed by `tsc --noEmit --incremental false` passed.
+- Started Docker Desktop and confirmed local Supabase was running. No database
+  reset was used. `supabase test db --local`: all 116 assertions in five files
+  passed. `supabase db lint --local --level warning`: no schema errors.
+- `npm audit --omit=dev`: zero vulnerabilities. Full `npm audit --json`:
+  two high development-only findings, in transitive `brace-expansion`
+  (1.1.18 and 5.0.9) and `zod` (4.5.4) under ESLint tooling. They are absent
+  from the runtime audit; the remaining risk is denial of service during
+  development/tooling use. These still require a dependency follow-up.
+- A targeted `npm update brace-expansion zod --dry-run --ignore-scripts
+  --no-audit --no-fund` failed because npm's remote-package fetch policy refused
+  an optional Tailwind tarball. No update was applied and the security branch's
+  lockfile was preserved; no policy override or forced downgrade was used.
+- `git diff --check`: passed after resolving the documentation conflict.
+  Browser and hosted end-to-end flows were not rerun; the earlier entries
+  record those separate checks. No hosted database/settings changes,
+  deployments, or pushes were made. Docker/local Supabase remain running.
+
+**Remaining release steps:**
+
+- Push the combined branch and open a PR for teammate review before merging
+  into `main`, per `README.md`.
+- Apply `20261023120000_opportunity_details.sql` to hosted Supabase before
+  deploying this frontend. The hosted migration state was not rechecked in
+  this session. After deployment, verify professor posting and student browsing
+  together on the live site.
+- Resolve the two development-only dependency advisories in a focused follow-up.

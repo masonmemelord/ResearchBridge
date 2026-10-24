@@ -53,10 +53,14 @@ Run these from `frontend/` before opening or approving a pull request:
 
 ```bash
 npm run lint
+npx next typegen
 npx tsc --noEmit --incremental false
 npm run test:auth
 npm run test:resumes
 npm run test:release
+npm run test:applications
+npm run test:admin
+npm run test:opportunities
 npm audit --omit=dev
 npm run build
 ```
@@ -65,6 +69,9 @@ A pull request should not merge while these checks fail. `npm run release:check`
 runs this sequence. Also inspect the full `npm audit`: runtime advisories must
 be resolved before release; development-only advisories need documented review.
 Review the main professor and student flow when a change affects UI or data behavior.
+
+`next typegen` generates the ignored Next.js declarations before TypeScript
+checks, so the checks also work on a fresh checkout after `npm ci`.
 
 ### Database and security
 
@@ -79,6 +86,13 @@ Feature branch → Pull request checks → Teammate review → Merge to main →
 ```
 
 - Deploy only code that passes lint and production build checks.
+- Before deploying the opportunity-details frontend, apply
+  `backend/supabase/migrations/20261023120000_opportunity_details.sql` using
+  `supabase db push` from `backend/`. Browsing requests the new columns, so
+  deploying the frontend first breaks that page. Test the migration locally
+  with `supabase test db --local` and `supabase db lint --local --level warning`.
+  The added columns are nullable for existing listings; leave them in place
+  if rolling back the frontend to the previous deployment.
 - Use preview deployments to review substantial UI changes before merging.
 - If production breaks, redeploy the last known-good deployment while the issue is investigated.
 
