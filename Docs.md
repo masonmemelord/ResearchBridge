@@ -774,6 +774,154 @@ profiles read policy, and enabling student signup once hosted email works.
   readers to copy it.
 - No commits, pushes, deployments, or hosted setting changes were made.
 
+## 2026-10-23 — Professor form: learning outcomes, hours, compensation, duties
+
+**Completed changes:**
+
+- Reviewer request: the professor posting form now asks for **learning
+  outcomes**, **time commitment** (hours per week, a single number or a range),
+  **compensation** (Yes/No; if Yes, a dollar amount and whether it is per hour,
+  per semester, or a one-time total), and **expected duties and skills**. All
+  four are required for new postings. Students see them on each listing card,
+  and search now also matches learning outcomes and duties.
+- Migration `backend/supabase/migrations/20261023120000_opportunity_details.sql`
+  adds `learning_outcomes`, `weekly_hours_min`, `weekly_hours_max`, `is_paid`,
+  `pay_amount` (`numeric(9,2)`), `pay_period` (new enum
+  `compensation_period`: `hour`, `semester`, `total`), and `duties_and_skills`.
+  Check constraints: text 20–1,500 characters; hours 1–40 with an optional
+  maximum not below the minimum; a paid listing must have an amount
+  ($0.01–$100,000) and a period, and an unpaid or unanswered one has neither.
+  RLS is unchanged (professors still write only their own rows).
+- **Design decision:** the columns are nullable and "required" is enforced by
+  the form, not the database. Existing hosted listings have no values, and a
+  `NOT VALID` check would still run when an admin closes one of them. Old
+  listings show "Not listed" for hours and compensation and hide the empty
+  text sections.
+- **Design decision:** compensation stores a pay period with the amount,
+  because "$15" and "$3,000" mean different things to a student. Drop or
+  rename the period options if reviewers prefer.
+- Shared validation and display labels live in
+  `frontend/lib/opportunities/details.ts`. Updated
+  `frontend/app/professor/opportunities/new/page.tsx` (fields, validation,
+  error summary, insert, confirmation), `frontend/lib/opportunities/published.ts`
+  (columns, normalization, search text),
+  `frontend/components/opportunities/OpportunityCard.tsx`, and the search hint in
+  `frontend/components/opportunities/OpportunityFilters.tsx`.
+- Tests: `backend/supabase/tests/verify_opportunity_details.sql` (21 assertions)
+  and `frontend/tests/opportunity-details.test.mjs` (5 tests, new
+  `test:opportunities` script, added to `release:check`).
+
+**Verification (local only; nothing deployed or pushed to hosted):**
+
+- Applied the migration locally with `supabase migration up --local` (no
+  reset). `supabase test db --local`: 116 assertions across 5 files passed.
+  `supabase db lint --local --level warning`: no schema errors.
+- `npm run lint`, `tsc --noEmit --incremental false`, and all unit tests
+  passed: auth 12, résumé 10, release 9, applications 8, admin 6, opportunity
+  details 5. `npm run build` passed.
+- Browser workflow against local Supabase (headless Chrome over DevTools,
+  synthetic professor and student, deleted afterward): 32/32 checks passed.
+  Covered the empty-submit error summary and its links, focus on the first
+  invalid field, the paid radio group by keyboard (Space and arrow keys),
+  pay fields shown only for paid positions, hours-range and amount errors,
+  publishing, the saved database row, the confirmation summary, the student
+  card, search on new text, and no horizontal overflow at 375px.
+- `supabase db push --dry-run` (read-only): hosted would receive only this
+  migration.
+- **`npm audit --omit=dev` fails** with 3 advisories, including a new
+  **critical** one in `next` 16.3.8 (GHSA-2464-fhr4-w9xw, unauthenticated RCE
+  in the Image Optimization API with SVGs; also GHSA-673q-mjm6-r5xr and
+  GHSA-p3m5-59mp-jv5r). The fix is `next` 16.4.2. The production site runs the
+  affected version. `sharp` and `source-map-js` advisories remain from
+  2026-10-08. The lockfile was not changed in this session.
+
+**Release order (needs a person):**
+
+1. `supabase db push` from `backend/` **before** deploying this frontend. The
+   student page now requests the new columns, so deploying first would break
+   browsing until the migration lands.
+2. Deploy, then publish a test listing on the live site and view it as a
+   student.
+
+**Follow-ups:**
+
+- Upgrade `next` to 16.4.2 (and run `npm audit fix` for `sharp` and
+  `source-map-js`) in a separate, reviewed change, soon.
+- Professors still cannot edit their postings, so listings published before
+  this change cannot gain the new details except through SQL. Consider an edit
+  flow, or ask those professors to re-post.
+- Possible next step: a "Paid only" filter and an hours filter on the student
+  page, now that the data is structured.
+- No commits, pushes, deployments, or hosted setting changes were made.
+
+## 2026-10-23 — Security hotfix: Next.js 16.4.2, sharp, source-map-js
+
+**Completed changes** (branch `fix/next-16.4.2-security`, built in a separate
+worktree from `main` at `9847d40` so the uncommitted opportunity-details work
+stays out of this change):
+
+- `frontend/package.json`: `next` and `eslint-config-next` 16.3.8 → 16.4.2
+  (exact pins, as before).
+- `frontend/package-lock.json`: `sharp` 0.35.4 → 0.35.5 (required by
+  `next@16.4.2`) with its `@img/*` platform packages and libvips 1.3.3 → 1.3.4;
+  `source-map-js` 1.2.1 → 1.2.2 via `npm update source-map-js` (in range).
+  No other package versions changed. `npm audit fix --force` was not used.
+
+**Advisories addressed (production dependencies):**
+
+- `next`: GHSA-2464-fhr4-w9xw (critical, unauthenticated RCE in the Image
+  Optimization API with SVGs), GHSA-673q-mjm6-r5xr (RCE in `use cache`
+  functions returning typed arrays), GHSA-p3m5-59mp-jv5r (Server Actions DoS).
+- `sharp`: GHSA-wq5f-xc86-pv6w (high, librsvg CVE-2026-96889).
+- `source-map-js`: GHSA-68fv-2mgg-jv7q (high, event-loop DoS).
+
+**Verification (local; not deployed):**
+
+- Before: `npm audit --omit=dev` 3 findings (1 critical, 2 high); full audit
+  9 (1 critical, 8 high). After: `npm audit --omit=dev` **0 vulnerabilities**;
+  full audit 6 high, all in the dev-only ESLint chain
+  (`eslint-config-next`, `@next/eslint-plugin-next`, `fast-glob`,
+  `micromatch`, `braces`, `brace-expansion`), unchanged from before. npm's
+  suggested fix for those downgrades `eslint-config-next` to 14.x, so it was
+  not applied.
+- `npm ci` from the new lockfile, then `npm run release:check`: exit 0 (lint,
+  type check, auth 12, résumé 10, release 9, applications 8, admin 6 tests,
+  audit, production build on Next.js 16.4.2).
+- Pre-existing gap found: on a fresh checkout, `release:check` fails its type
+  check (4 errors) until `next typegen` or a build has generated
+  `next-env.d.ts` and `.next/types`. Reproduced on unmodified `main` with
+  16.3.8, so it is not caused by this upgrade. Not changed here.
+- `next start` smoke test (hosted Supabase settings): `/`, `/opportunities`,
+  `/sign-in`, `/professor/opportunities`, `/professor/opportunities/new`,
+  `/admin`, `/verify-email`, `/auth/callback` 200; `/sign-up` and `/access`
+  307 to `/sign-in`; résumé page and API 404. The image optimizer served the
+  logo (200 PNG, via the upgraded `sharp`) and refused an SVG (400).
+- Headless Chrome on the six main routes at 1280px and 375px: client reports
+  `window.next.version` 16.4.2, no uncaught exceptions, no horizontal
+  overflow.
+- Signed-in flows on a 16.4.2 build pointed at **local** Supabase (synthetic
+  professor, student, and admin; deleted afterward): 13/13 checks passed —
+  professor publishes, student browses and applies, professor sees the
+  applicant, admin sees People and Postings and closes the posting, closed
+  posting is hidden from students.
+- Production before the change: `researchbridge-omega.vercel.app` serves
+  `9847d40` and its client chunk contains `window.next={version:"16.3.8"`.
+
+**Rollback plan:**
+
+- Fastest: in Vercel, promote the previous production deployment
+  (`9847d40`, `researchbridge-96yr3ilvk`) with Instant Rollback.
+- In Git: `git revert -m 1 <merge commit>` on a branch, open a PR, and merge.
+  This restores 16.3.8 and the critical advisory, so only roll back for a
+  confirmed regression, and re-apply a fix promptly.
+- No database migrations or environment variables are involved.
+
+**After deployment (needs approval first):**
+
+- Confirm the live client chunk reports `window.next={version:"16.4.2"`, then
+  sign in as a professor, student, and admin and repeat the main flows.
+- No merge, deployment, or hosted setting changes were made.
+
 
 The schema (enums, `profiles`, `departments`, `opportunities`, constraints, indexes, triggers, and RLS policies) lives in `backend/supabase/migrations/`. Department seed data lives in `backend/supabase/seed.sql`.
 
@@ -806,7 +954,7 @@ supabase link --project-ref <your-project-ref>
 supabase db push        # applies any migrations not yet on the remote database
 ```
 
-**Verifying the RLS policies and constraints:** `backend/supabase/tests/verify_opportunities_rls.sql` proves the required access rules and frontend-aligned constraints. `verify_student_self_signup.sql` proves the sign-up trigger only ever creates student profiles. `verify_applications_rls.sql` proves who can apply and who can see applications. `verify_admin_tier.sql` proves what admins can and cannot do. It runs in a transaction that's rolled back at the end, so it's safe to run repeatedly:
+**Verifying the RLS policies and constraints:** `backend/supabase/tests/verify_opportunities_rls.sql` proves the required access rules and frontend-aligned constraints. `verify_student_self_signup.sql` proves the sign-up trigger only ever creates student profiles. `verify_applications_rls.sql` proves who can apply and who can see applications. `verify_admin_tier.sql` proves what admins can and cannot do. `verify_opportunity_details.sql` proves the learning-outcome, hours, compensation, and duties constraints. Each runs in a transaction that's rolled back at the end, so it's safe to run repeatedly:
 
 ```bash
 cd backend
@@ -1079,6 +1227,7 @@ by the frontend.
 ### To-Do
 
 1. **Add professor side logic** Learning outcomes, Time commitment, Compensation(Y/N), Expected duties/requirements
+   — built and tested locally on 2026-10-23; push the migration, then deploy.
 2. **Set up Resend for sign-up and emails.** Use Resend as the custom SMTP
   provider in hosted Supabase (**Authentication → Emails → SMTP Settings**) with
   a verified sending domain. Then finish the rest of the hosted sign-up
@@ -1089,3 +1238,95 @@ by the frontend.
 4. **Finish résumé scanning logic.** The feature is still local-only and held
   out of hosted migrations (see `backend/supabase/held/README.md` and the
   "Before production" notes in **Local AI résumé demo**).
+
+## 2026-10-24 — Consolidate and verify changes for pushing
+
+**Completed changes:**
+
+- Fetched `origin` and checked branch ancestry. The older schema and frontend
+  branches were already included in `main`; only
+  `fix/next-16.4.2-security` needed integrating with the opportunity-details work.
+- Created `codex/push-ready-opportunity-details` from `main` and committed the
+  existing opportunity form, card, search, validation, migration, and tests as
+  `97d924d`. Merged security commit `ee35e10`, preserving both session entries
+  when resolving the `Docs.md` conflict. Local `main` remains unchanged so the
+  combined branch can follow the README's push-and-PR workflow.
+- Integrated `frontend/package.json` and `frontend/package-lock.json`: Next.js
+  and eslint-config-next 16.4.2, sharp 0.35.5, and source-map-js 1.2.2, while
+  retaining the opportunity test script and release gate.
+- Fixed the documented fresh-checkout release-check failure by generating
+  Next.js declarations with `next typegen` before `tsc` in
+  `frontend/package.json`. Read the installed Next.js TypeScript/CLI guides
+  before changing the check command.
+- Updated `README.md` with the complete check sequence, migration-before-deploy
+  requirement, and the frontend rollback approach (retain the additive columns).
+  This entry records the review and verification; no additional feature code
+  was introduced in this session.
+
+**Verification:**
+
+- `npm ci --no-audit --no-fund`: passed with the merged lockfile.
+- `npm run release:check`: passed, including lint, route type generation,
+  TypeScript, 50 unit tests (auth 12, résumé 10, release 9, applications 8,
+  admin 6, opportunity details 5), runtime audit, and the default Turbopack
+  production build on Next.js 16.4.2. The first sandboxed attempt reached
+  audit but could not resolve the registry; the subsequent complete run with
+  network access exited successfully.
+- Fresh-source-copy check without `.next` or `next-env.d.ts`:
+  `next typegen` followed by `tsc --noEmit --incremental false` passed.
+- Started Docker Desktop and confirmed local Supabase was running. No database
+  reset was used. `supabase test db --local`: all 116 assertions in five files
+  passed. `supabase db lint --local --level warning`: no schema errors.
+- `npm audit --omit=dev`: zero vulnerabilities. Full `npm audit --json`:
+  two high development-only findings, in transitive `brace-expansion`
+  (1.1.18 and 5.0.9) and `zod` (4.5.4) under ESLint tooling. They are absent
+  from the runtime audit; the remaining risk is denial of service during
+  development/tooling use. These still require a dependency follow-up.
+- A targeted `npm update brace-expansion zod --dry-run --ignore-scripts
+  --no-audit --no-fund` failed because npm's remote-package fetch policy refused
+  an optional Tailwind tarball. No update was applied and the security branch's
+  lockfile was preserved; no policy override or forced downgrade was used.
+- `git diff --check`: passed after resolving the documentation conflict.
+  Browser and hosted end-to-end flows were not rerun; the earlier entries
+  record those separate checks. No hosted database/settings changes,
+  deployments, or pushes were made. Docker/local Supabase remain running.
+
+**Remaining release steps:**
+
+- Push the combined branch and open a PR for teammate review before merging
+  into `main`, per `README.md`.
+- Apply `20261023120000_opportunity_details.sql` to hosted Supabase before
+  deploying this frontend. The hosted migration state was not rechecked in
+  this session. After deployment, verify professor posting and student browsing
+  together on the live site.
+- Resolve the two development-only dependency advisories in a focused follow-up.
+
+## 2026-10-24 — Verify and prepare the requested GitHub merge
+
+**Completed work:**
+
+- The user requested merging the pushed changes into `main`. Refreshed
+  `origin` and confirmed `codex/push-ready-opportunity-details` matches the
+  previously tested `e542b4f`; `origin/main` has no divergent commits.
+- Created [PR #6](https://github.com/masonmemelord/ResearchBridge/pull/6)
+  to merge the combined opportunity-details and security changes into `main`.
+  GitHub reports it mergeable with a clean merge state; the Vercel deployment
+  and preview-comment checks passed. Supabase Preview was skipped.
+- `supabase db push --dry-run`: remote database is up to date. The migration
+  prerequisite for deploying the new frontend is satisfied; no database
+  migrations or hosted settings were changed in this session.
+- The only repository file changed in this merge session is `Docs.md`.
+  Application code and dependency versions remain identical to the verified
+  release. PR #6 records the subsequent GitHub merge and deployment outcome.
+
+**Verification and follow-ups:**
+
+- `git diff --exit-code e542b4f origin/codex/push-ready-opportunity-details`
+  and `git diff --check origin/main...origin/codex/push-ready-opportunity-details`:
+  passed before this documentation update.
+- Application tests were not repeated because there are no new application
+  changes. The preceding session records the passing release check, 50 unit
+  tests, 116 database assertions, schema lint, and fresh-checkout type check.
+- After merging, confirm the production deployment and smoke-test professor
+  posting and student browsing. Two development-only dependency advisories
+  remain as documented above; the verified runtime audit is clean.

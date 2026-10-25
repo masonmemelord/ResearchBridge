@@ -4,8 +4,10 @@
  * with fallbacks instead of crashing the page.
  */
 
+import { isPayPeriod, type PayPeriod } from "./details.ts";
+
 export const PUBLISHED_OPPORTUNITY_COLUMNS =
-  "id,title,description,school,department,preferred_majors,keywords,duration_semesters,eligible_class_years,positions_available,created_at";
+  "id,title,description,school,department,preferred_majors,keywords,duration_semesters,eligible_class_years,positions_available,learning_outcomes,weekly_hours_min,weekly_hours_max,is_paid,pay_amount,pay_period,duties_and_skills,created_at";
 
 export const SCHOOL_LABELS: Readonly<Record<string, string>> = {
   architecture: "Architecture",
@@ -36,7 +38,16 @@ export type PublishedOpportunity = {
   /** Lowercase database values, e.g. "junior". */
   eligibleClassYears: string[];
   positionsAvailable: number | null;
-  /** Lowercased title, department, description, majors, and keywords. */
+  /** Empty on listings created before these details existed. */
+  learningOutcomes: string;
+  dutiesAndSkills: string;
+  weeklyHoursMin: number | null;
+  weeklyHoursMax: number | null;
+  /** null when the listing predates the compensation question. */
+  isPaid: boolean | null;
+  payAmount: number | null;
+  payPeriod: PayPeriod | null;
+  /** Lowercased title, department, description, outcomes, duties, majors, and keywords. */
   searchText: string;
 };
 
@@ -56,6 +67,12 @@ function asPositiveInteger(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
 }
 
+/** Postgres numeric may arrive as a number or a string. */
+function asPositiveAmount(value: unknown): number | null {
+  const amount = typeof value === "string" ? Number(value) : value;
+  return typeof amount === "number" && Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
 /** Returns null only for rows that cannot be identified (no id). */
 export function normalizeOpportunity(row: unknown): PublishedOpportunity | null {
   if (typeof row !== "object" || row === null) return null;
@@ -68,6 +85,10 @@ export function normalizeOpportunity(row: unknown): PublishedOpportunity | null 
   const department = asText(record.department);
   const preferredMajors = asTextList(record.preferred_majors);
   const keywords = asTextList(record.keywords);
+  const learningOutcomes = asText(record.learning_outcomes);
+  const dutiesAndSkills = asText(record.duties_and_skills);
+  const weeklyHoursMin = asPositiveInteger(record.weekly_hours_min);
+  const isPaid = typeof record.is_paid === "boolean" ? record.is_paid : null;
 
   return {
     id,
@@ -82,7 +103,14 @@ export function normalizeOpportunity(row: unknown): PublishedOpportunity | null 
       year.toLocaleLowerCase(),
     ),
     positionsAvailable: asPositiveInteger(record.positions_available),
-    searchText: [title, department, description, ...preferredMajors, ...keywords]
+    learningOutcomes,
+    dutiesAndSkills,
+    weeklyHoursMin,
+    weeklyHoursMax: weeklyHoursMin === null ? null : asPositiveInteger(record.weekly_hours_max),
+    isPaid,
+    payAmount: isPaid ? asPositiveAmount(record.pay_amount) : null,
+    payPeriod: isPaid && isPayPeriod(record.pay_period) ? record.pay_period : null,
+    searchText: [title, department, description, learningOutcomes, dutiesAndSkills, ...preferredMajors, ...keywords]
       .join("\n")
       .toLocaleLowerCase(),
   };
@@ -171,7 +199,8 @@ export function schoolOptions(
 /**
  * All active filters must match (AND). The search query is split on
  * whitespace and every word must appear, case-insensitively, somewhere in the
- * title, department, description, preferred majors, or keywords.
+ * title, department, description, learning outcomes, duties and skills,
+ * preferred majors, or keywords.
  */
 export function filterOpportunities(
   opportunities: readonly PublishedOpportunity[],

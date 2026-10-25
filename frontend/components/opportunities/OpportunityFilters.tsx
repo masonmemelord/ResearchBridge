@@ -51,7 +51,7 @@ export function OpportunityFilters({
           className={controlClass}
         />
         <p id="opportunity-search-hint" className="mt-2 text-[13px] leading-5 text-rb-muted">
-          Matches titles, departments, descriptions, majors, and keywords.
+          Matches titles, departments, descriptions, learning outcomes, duties, majors, and keywords.
         </p>
       </div>
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { compensationLabel, weeklyHoursLabel } from "../../lib/opportunities/details";
 import {
   classYearLabel,
   durationLabel,
@@ -26,6 +27,15 @@ function Fallback({ children }: { children: string }) {
   return <p className="mt-1 text-rb-muted">{children}</p>;
 }
 
+function DetailText({ heading, children }: { heading: string; children: string }) {
+  return (
+    <section className="mt-5">
+      <h3 className="text-sm font-bold text-rb-ink">{heading}</h3>
+      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-rb-muted">{children}</p>
+    </section>
+  );
+}
+
 type OpportunityCardProps = {
   opportunity: PublishedOpportunity;
   /** Role-specific next step, such as the student Apply control. */
@@ -43,6 +53,13 @@ export function OpportunityCard({ opportunity, actions }: OpportunityCardProps) 
     durationSemesters,
     eligibleClassYears,
     positionsAvailable,
+    learningOutcomes,
+    dutiesAndSkills,
+    weeklyHoursMin,
+    weeklyHoursMax,
+    isPaid,
+    payAmount,
+    payPeriod,
   } = opportunity;
 
   return (
@@ -65,7 +82,17 @@ export function OpportunityCard({ opportunity, actions }: OpportunityCardProps) 
           The professor has not added a description yet.
         </p>
       )}
+      {learningOutcomes ? <DetailText heading="Learning outcomes">{learningOutcomes}</DetailText> : null}
+      {dutiesAndSkills ? <DetailText heading="Expected duties and skills">{dutiesAndSkills}</DetailText> : null}
       <dl className="mt-6 grid gap-4 border-t border-rb-border pt-5 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="font-bold text-rb-ink">Time commitment</dt>
+          <dd className="mt-1 text-rb-muted">{weeklyHoursLabel(weeklyHoursMin, weeklyHoursMax)}</dd>
+        </div>
+        <div>
+          <dt className="font-bold text-rb-ink">Compensation</dt>
+          <dd className="mt-1 text-rb-muted">{compensationLabel(isPaid, payAmount, payPeriod)}</dd>
+        </div>
         <div>
           <dt className="font-bold text-rb-ink">Duration</dt>
           <dd className="mt-1 text-rb-muted">{durationLabel(durationSemesters)}</dd>
