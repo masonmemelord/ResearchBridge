@@ -1300,3 +1300,33 @@ by the frontend.
   this session. After deployment, verify professor posting and student browsing
   together on the live site.
 - Resolve the two development-only dependency advisories in a focused follow-up.
+
+## 2026-10-24 — Verify and prepare the requested GitHub merge
+
+**Completed work:**
+
+- The user requested merging the pushed changes into `main`. Refreshed
+  `origin` and confirmed `codex/push-ready-opportunity-details` matches the
+  previously tested `e542b4f`; `origin/main` has no divergent commits.
+- Created [PR #6](https://github.com/masonmemelord/ResearchBridge/pull/6)
+  to merge the combined opportunity-details and security changes into `main`.
+  GitHub reports it mergeable with a clean merge state; the Vercel deployment
+  and preview-comment checks passed. Supabase Preview was skipped.
+- `supabase db push --dry-run`: remote database is up to date. The migration
+  prerequisite for deploying the new frontend is satisfied; no database
+  migrations or hosted settings were changed in this session.
+- The only repository file changed in this merge session is `Docs.md`.
+  Application code and dependency versions remain identical to the verified
+  release. PR #6 records the subsequent GitHub merge and deployment outcome.
+
+**Verification and follow-ups:**
+
+- `git diff --exit-code e542b4f origin/codex/push-ready-opportunity-details`
+  and `git diff --check origin/main...origin/codex/push-ready-opportunity-details`:
+  passed before this documentation update.
+- Application tests were not repeated because there are no new application
+  changes. The preceding session records the passing release check, 50 unit
+  tests, 116 database assertions, schema lint, and fresh-checkout type check.
+- After merging, confirm the production deployment and smoke-test professor
+  posting and student browsing. Two development-only dependency advisories
+  remain as documented above; the verified runtime audit is clean.
