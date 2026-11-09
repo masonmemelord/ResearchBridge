@@ -206,6 +206,14 @@ function OpportunityWithApplicants({ opportunity }: { opportunity: ProfessorOppo
         </p>
       ) : null}
 
+      <Link
+        href={`${PROFESSOR_ROUTES.opportunities}/${encodeURIComponent(opportunity.id)}/edit`}
+        aria-label={`Edit ${title || "opportunity"}`}
+        className={`mt-5 ${secondaryButtonClass}`}
+      >
+        Edit opportunity
+      </Link>
+
       <section className="mt-5 border-t border-rb-border pt-5" aria-label={`Applicants for ${title || "this opportunity"}`}>
         <h3 className="text-sm font-bold text-rb-ink">
           {applicants.length === 0 ? "Applicants" : `Applicants (${applicants.length})`}
