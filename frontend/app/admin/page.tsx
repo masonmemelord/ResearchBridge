@@ -422,6 +422,7 @@ function UserRow({
             )}
           </div>
           <p className="mt-1 break-all text-sm text-rb-muted">{user.email || "No email"}</p>
+          <p className="mt-1 text-xs text-rb-muted">{user.emailConfirmedAt ? "Email confirmed" : user.invitedAt ? "Invited by the team; acceptance pending" : "Email not confirmed"}</p>
           <p className="mt-1 text-xs text-rb-muted">
             {[joined ? `Joined ${joined}` : null, lastSignIn ? `Last sign-in ${lastSignIn}` : "Never signed in"]
               .filter(Boolean)

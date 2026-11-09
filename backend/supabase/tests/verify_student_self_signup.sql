@@ -54,8 +54,7 @@ select is(
   'names are capped at 120 characters'
 );
 
--- 4. Users without the marker (dashboard "Add user") get no automatic profile,
---    so team provisioning of professors keeps working.
+-- 4. Missing and forged markers cannot affect automatic student provisioning.
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
   ('cccccccc-5555-4444-8888-555555555555', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
@@ -65,17 +64,18 @@ values
 
 select is(
   (select count(*)::integer from public.profiles where id = 'cccccccc-5555-4444-8888-555555555555'),
-  0,
-  'users created without the self-signup marker get no automatic profile'
+  1,
+  'users without any marker still get a student profile'
 );
 select is(
   (select count(*)::integer from public.profiles where id = 'cccccccc-6666-4444-8888-666666666666'),
-  0,
-  'only the exact self_signup=true marker creates a profile'
+  1,
+  'a malformed marker cannot suppress student provisioning'
 );
 select lives_ok(
   $$ insert into public.profiles (id, full_name, role)
-     values ('cccccccc-5555-4444-8888-555555555555', 'Dashboard Professor', 'professor') $$,
+     values ('cccccccc-5555-4444-8888-555555555555', 'Dashboard Professor', 'professor')
+     on conflict (id) do update set role = excluded.role $$,
   'the team can still provision a professor profile for a dashboard-created user'
 );
 

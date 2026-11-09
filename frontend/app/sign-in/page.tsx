@@ -173,6 +173,8 @@ export default function SignInPage() {
         </button>
       </form>
 
+      <Link href="/reset-password" className={`mt-5 block text-sm ${authStyles.textLink}`}>Forgot password? Set or reset it here</Link>
+
       {unconfirmedEmail ? (
         <div className="mt-6 border-t border-rb-border pt-6">
           <Link href="/verify-email" className={`mb-5 inline-block ${authStyles.textLink}`}>

@@ -109,7 +109,7 @@ export function ResendConfirmation({
         {busy
           ? "Sending…"
           : waiting
-            ? `Send another link in ${cooldown}s`
+            ? `Send another code in ${cooldown}s`
             : "Send another code"}
       </button>
 

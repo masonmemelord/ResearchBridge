@@ -27,7 +27,7 @@ export type SignUpFields = {
 export type SignUpFieldErrors = Partial<Record<keyof SignUpFields, string>>;
 
 export function normalizeFullName(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
+  return value.replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export function normalizeEmail(value: string): string {
@@ -44,6 +44,13 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function isPlausibleEmail(value: string): boolean {
   return value.length <= EMAIL_MAX_LENGTH && EMAIL_PATTERN.test(value);
+}
+
+export function passwordError(password: string, confirmation: string): string | null {
+  if (password.length < PASSWORD_MIN_LENGTH) return `Use at least ${PASSWORD_MIN_LENGTH} characters.`;
+  if (new TextEncoder().encode(password).length > PASSWORD_MAX_BYTES) return "Use a shorter password (72 UTF-8 bytes maximum).";
+  if (password !== confirmation) return "The passwords do not match.";
+  return null;
 }
 
 /** Returns one message per invalid field, in form order. Empty when valid. */
@@ -149,7 +156,7 @@ export function signupCodeErrorMessage(error: AuthErrorLike): string {
   if ((error.code && RATE_LIMIT_CODES.has(error.code)) || error.status === 429)
     return "Too many attempts. Wait a few minutes before trying again.";
   if (error.code === "otp_expired" || error.code === "invalid_otp" || error.code === "token_expired")
-    return "That code is invalid or expired. Check the latest email we sent and try again.";
+    return "That code is invalid or expired. Use the latest code, or sign in if you already verified. If password setup was interrupted, use Forgot password.";
   return "We could not verify that code. Check the latest email we sent or request a new code.";
 }
 

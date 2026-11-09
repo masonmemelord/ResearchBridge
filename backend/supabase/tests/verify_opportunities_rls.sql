@@ -56,7 +56,8 @@ insert into public.profiles (id, full_name, role)
 values
   ('11111111-1111-1111-1111-111111111111', 'Professor A', 'professor'),
   ('22222222-2222-2222-2222-222222222222', 'Professor B', 'professor'),
-  ('33333333-3333-3333-3333-333333333333', 'Student S', 'student');
+  ('33333333-3333-3333-3333-333333333333', 'Student S', 'student')
+on conflict (id) do update set full_name = excluded.full_name, role = excluded.role;
 
 -- Constraint checks run as the table owner. This bypasses RLS but not the
 -- database constraints under test.
@@ -484,12 +485,13 @@ select throws_ok(
   'a new user cannot create their own admin profile'
 );
 
-select lives_ok(
+select throws_ok(
   $$
     insert into public.profiles (id, full_name, role)
     values ('44444444-4444-4444-4444-444444444444', 'New User', 'student')
   $$,
-  'a new user can create their own student profile'
+  '42501', null,
+  'student profiles are provisioned by the database, not the client'
 );
 
 -- Professor A: authenticated requests carry the user ID in the JWT claims.

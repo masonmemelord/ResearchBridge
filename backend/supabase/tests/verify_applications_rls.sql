@@ -17,7 +17,8 @@ values
   ('a1111111-1111-4111-8111-111111111111', 'Professor A', 'professor'),
   ('a2222222-2222-4222-8222-222222222222', 'Professor B', 'professor'),
   ('a3333333-3333-4333-8333-333333333333', 'Student S', 'student'),
-  ('a4444444-4444-4444-8444-444444444444', 'Student T', 'student');
+  ('a4444444-4444-4444-8444-444444444444', 'Student T', 'student')
+on conflict (id) do update set full_name = excluded.full_name, role = excluded.role;
 
 insert into public.opportunities (
   id, professor_id, school, department, keywords, title, description,

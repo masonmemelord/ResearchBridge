@@ -3,9 +3,8 @@ export const PILOT_CONTACT_EMAIL = "TheResearchAmbassadors@wave.tulane.edu";
 
 export function publicSignupEnabled(
   flag = process.env.NEXT_PUBLIC_ENABLE_SELF_SIGNUP,
-  mode = process.env.NODE_ENV,
 ): boolean {
-  return mode !== "production" && flag === "true";
+  return flag === "true";
 }
 
 export function resumeDemoEnabled(

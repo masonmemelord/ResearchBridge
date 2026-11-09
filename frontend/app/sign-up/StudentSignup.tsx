@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { AuthShell, authStyles } from "../../components/auth/AuthShell";
+import { PasswordSetup } from "../../components/auth/PasswordSetup";
 import { ResendConfirmation } from "../../components/auth/ResendConfirmation";
 import { hasSession, useAuth } from "../../lib/auth/auth-context";
 import { AUTH_MESSAGES, ROLE_HOME, fetchProfileRole } from "../../lib/auth/profile";
@@ -28,6 +29,7 @@ import { getSupabaseBrowserClient } from "../../lib/supabase/client";
 type Step =
   | { kind: "form" }
   | { kind: "verify-email"; email: string }
+  | { kind: "set-password"; userId: string; email: string; password: string; fullName: string }
   | { kind: "redirecting" };
 
 const FIELD_ORDER: (keyof SignUpFields)[] = ["fullName", "email", "password", "confirmPassword"];
@@ -104,6 +106,9 @@ export default function SignUpPage() {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const inputRefs = useRef<Partial<Record<keyof SignUpFields, HTMLInputElement | null>>>({});
+  const pendingSetup = useRef<{ password: string; fullName: string } | null>(null);
+  const verifyingRef = useRef(false);
+  const submittingRef = useRef(false);
   const codeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -112,16 +117,16 @@ export default function SignUpPage() {
 
   async function handleVerifyCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (step.kind !== "verify-email") return;
+    if (step.kind !== "verify-email" || verifyingRef.current) return;
     if (!isSignupCode(code)) {
       setCodeError(`Enter the ${SIGNUP_CODE_LENGTH}-digit code from your email.`);
       codeInputRef.current?.focus();
       return;
     }
 
+    verifyingRef.current = true;
     setIsVerifying(true);
     setCodeError(null);
-    let redirecting = false;
     try {
       const supabase = getSupabaseBrowserClient();
       const { data, error } = await supabase.auth.verifyOtp({
@@ -134,23 +139,17 @@ export default function SignUpPage() {
         return;
       }
       if (!data.session?.user) {
-        setCodeError("Your email was verified. Sign in to finish opening your account.");
+        setCodeError("We could not obtain a verification session. Use Forgot password to finish securely.");
         return;
       }
-      const profile = await fetchProfileRole(supabase, data.session.user.id);
-      if (profile.kind === "role") {
-        redirecting = true;
-        setCode("");
-        setStep({ kind: "redirecting" });
-        router.replace(ROLE_HOME[profile.role]);
-        return;
-      }
-      await discardSession(supabase);
-      setCodeError(profile.kind === "missing" ? AUTH_MESSAGES.missingProfile : AUTH_MESSAGES.profileUnavailable);
+      setCode("");
+      setStep({ kind: "set-password", userId: data.session.user.id, email: step.email, password: pendingSetup.current?.password ?? "", fullName: pendingSetup.current?.fullName ?? "" });
+      pendingSetup.current = null;
     } catch {
       setCodeError("We could not verify the code. Check your connection and try again.");
     } finally {
-      if (!redirecting) setIsVerifying(false);
+      verifyingRef.current = false;
+      setIsVerifying(false);
     }
   }
 
@@ -167,6 +166,7 @@ export default function SignUpPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submittingRef.current) return;
     setFormError(null);
 
     const errors = validateSignUp(fields);
@@ -176,6 +176,7 @@ export default function SignUpPage() {
       return;
     }
 
+    submittingRef.current = true;
     setIsSubmitting(true);
     let redirecting = false;
     const email = normalizeEmail(fields.email);
@@ -187,9 +188,7 @@ export default function SignUpPage() {
         password: fields.password,
         options: {
           emailRedirectTo: authCallbackUrl(window.location.origin),
-          // `self_signup` tells the database trigger to create a *student*
-          // profile. The role is fixed in SQL and never read from this data.
-          data: { self_signup: true, full_name: normalizeFullName(fields.fullName) },
+          data: { full_name: normalizeFullName(fields.fullName) },
         },
       });
 
@@ -210,6 +209,7 @@ export default function SignUpPage() {
         // Email confirmation is required. Supabase returns the same response
         // for an address that already has an account, so the next screen
         // must not claim the account is new.
+        pendingSetup.current = { password: fields.password, fullName: normalizeFullName(fields.fullName) };
         setFields(EMPTY_FIELDS);
         setCode("");
         setStep({ kind: "verify-email", email });
@@ -235,6 +235,7 @@ export default function SignUpPage() {
       console.error("Supabase sign-up is not configured", configurationError);
       setFormError(AUTH_MESSAGES.notConfigured);
     } finally {
+      submittingRef.current = false;
       if (!redirecting) setIsSubmitting(false);
     }
   }
@@ -247,6 +248,10 @@ export default function SignUpPage() {
       </Link>
     </>
   );
+
+  if (step.kind === "set-password") {
+    return <PasswordSetup userId={step.userId} email={step.email} initialPassword={step.password} initialName={step.fullName} />;
+  }
 
   if (step.kind === "redirecting") {
     return (
@@ -306,7 +311,7 @@ export default function SignUpPage() {
 
         <button
           type="button"
-          onClick={() => { setCode(""); setCodeError(null); setStep({ kind: "form" }); }}
+          onClick={() => { pendingSetup.current = null; setCode(""); setCodeError(null); setStep({ kind: "form" }); }}
           className={`mt-5 block w-full rounded text-center text-sm ${authStyles.textLink}`}
         >
           Use a different email
