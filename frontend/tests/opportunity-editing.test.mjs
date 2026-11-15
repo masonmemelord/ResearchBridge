@@ -58,10 +58,13 @@ function clientFor(response) {
   const query = {
     select(columns) { calls.push(["select", columns]); return query; },
     eq(field, value) { calls.push(["eq", field, value]); return query; },
-    update(fields) { calls.push(["update", fields]); return query; },
     async maybeSingle() { if (response instanceof Error) throw response; return response; },
   };
-  return { calls, from(table) { assert.equal(table, "opportunities"); return query; } };
+  return {
+    calls,
+    from(table) { assert.equal(table, "opportunities"); return query; },
+    rpc(name, args) { calls.push([name, args]); return query; },
+  };
 }
 
 test("edit loading filters by both listing and owner", async () => {
@@ -78,15 +81,17 @@ test("invalid, absent, and wrong-owner listings never become editable", async ()
   }
 });
 
-test("editing updates in place with ownership and version filters and excludes protected fields", async () => {
+test("editing sends the listing version and allowed fields to the database function", async () => {
   const existing = normalizeEditableOpportunity(row);
   const input = parseOpportunity({ ...existing.values, title: "Revised imaging assistant" }, "closed").value;
   const client = clientFor({ data: { id, created_at: "2026-10-01T00:00:00Z" }, error: null });
   assert.equal((await updateOpportunity(client, existing, { ...input, id: "forged", professor_id: "forged", updated_at: "forged" })).ok, true);
-  const payload = client.calls.find(([method]) => method === "update")[1];
+  const [[method, { target_opportunity_id, expected_updated_at, fields: payload }]] = client.calls;
+  assert.equal(method, "professor_edit_opportunity");
+  assert.equal(target_opportunity_id, id);
+  assert.equal(expected_updated_at, row.updated_at);
   for (const protectedField of ["id", "professor_id", "status", "created_at", "updated_at", "applications"]) assert.equal(protectedField in payload, false);
   assert.equal(payload.title, "Revised imaging assistant");
-  assert.deepEqual(client.calls.filter(([method]) => method === "eq"), [["eq", "id", id], ["eq", "professor_id", owner], ["eq", "updated_at", row.updated_at]]);
 });
 
 test("a zero-row update is a conflict instead of a false success", async () => {
