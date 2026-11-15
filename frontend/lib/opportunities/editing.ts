@@ -71,9 +71,11 @@ export async function updateOpportunity(
   client: SupabaseClient, existing: EditableOpportunity, input: OpportunityInput,
 ): Promise<Result<{ id: string; createdAt: string }>> {
   try {
-    const { data, error } = await client.from("opportunities").update(opportunityFields(input))
-      .eq("id", existing.id).eq("professor_id", existing.professorId)
-      .eq("updated_at", existing.updatedAt).select("id,created_at").maybeSingle();
+    const { data, error } = await client.rpc("professor_edit_opportunity", {
+      target_opportunity_id: existing.id,
+      expected_updated_at: existing.updatedAt,
+      fields: opportunityFields(input),
+    }).maybeSingle<{ id: string; created_at: string }>();
     if (error) return { ok: false, message: error.code === "42501" ? EDIT_MESSAGES.unavailable : EDIT_MESSAGES.saveFailed };
     if (!data) return { ok: false, message: EDIT_MESSAGES.conflict };
     return { ok: true, value: { id: data.id, createdAt: data.created_at } };

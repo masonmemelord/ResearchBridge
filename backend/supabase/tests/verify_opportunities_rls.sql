@@ -596,14 +596,11 @@ set local "request.jwt.claims" =
   '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
 set local role authenticated;
 
-update public.opportunities
-set title = 'Hijacked'
-where title = 'Genomics RA';
-
-select is(
-  (select count(*) from public.opportunities where title = 'Hijacked'),
-  0::bigint,
-  'another professor cannot modify an opportunity they do not own'
+select throws_ok(
+  $$ update public.opportunities set title = 'Hijacked' where title = 'Genomics RA' $$,
+  '42501',
+  null,
+  'another professor cannot update a listing directly'
 );
 
 select is(
@@ -657,14 +654,11 @@ select is(
   'a student cannot see a closed opportunity'
 );
 
-update public.opportunities
-set title = 'Student Edit'
-where title = 'Genomics RA';
-
-select is(
-  (select count(*) from public.opportunities where title = 'Student Edit'),
-  0::bigint,
-  'a student cannot update an opportunity'
+select throws_ok(
+  $$ update public.opportunities set title = 'Student Edit' where title = 'Genomics RA' $$,
+  '42501',
+  null,
+  'a student cannot update a listing directly'
 );
 
 delete from public.opportunities
@@ -691,14 +685,11 @@ set local "request.jwt.claims" =
   '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 set local role authenticated;
 
-update public.opportunities
-set title = 'Revised Draft'
-where title = 'Unfinished Draft';
-
-select is(
-  (select count(*) from public.opportunities where title = 'Revised Draft'),
-  1::bigint,
-  'a professor can update their own opportunity'
+select throws_ok(
+  $$ update public.opportunities set title = 'Revised Draft' where title = 'Unfinished Draft' $$,
+  '42501',
+  null,
+  'an owner must use the edit function'
 );
 
 delete from public.opportunities

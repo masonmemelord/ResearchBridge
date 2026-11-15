@@ -52,17 +52,16 @@ they reload or refresh their listings. Drafts and closed listings stay private.
 Changing status is a separate action; the edit form does not publish or reopen
 a listing.
 
-The read and update requests filter by the signed-in professor's ID, and
-Postgres RLS enforces ownership and professor role. Updates also match the
-loaded `updated_at` value, so another tab or an admin's changes cannot be
-silently overwritten. A conflict keeps the local entries and offers **Reload
-latest version** with a discard confirmation. Failed network requests can be
-retried, and **Cancel** confirms before discarding edits. Refreshing or closing
-the tab also warns about unsaved entries when supported by the browser.
+The database edit function authorizes the professor who owns the listing,
+accepts only editable fields, and requires the version loaded by the form. A
+conflict keeps the local entries and offers **Reload latest version** with a
+discard confirmation. Failed network requests can be retried. **Cancel** and
+leaving the page warn about unsaved entries where supported.
 
-No new migration or environment variable is required for editing; the existing
-opportunity-details migration must already be applied. Regression coverage is in
-`frontend/tests/opportunity-editing.test.mjs` and
+Apply `backend/supabase/migrations/20261107120000_protect_opportunity_edits.sql`
+before releasing the edit UI. The migration disables direct client updates.
+Creating a listing and changing status via the admin function still work.
+Regression coverage is in `frontend/tests/opportunity-editing.test.mjs` and
 `backend/supabase/tests/verify_opportunity_edits.sql`.
 
 ## Team CI/CD Rules
