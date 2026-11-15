@@ -82,6 +82,8 @@ test("database refusals become specific admin messages", async () => {
   assert.equal(otherAdmin.ok ? "" : otherAdmin.message, ADMIN_MESSAGES.adminRole);
   const notAdmin = await setOpportunityStatus(rpcClient({ code: "42501", message: "admin access required" }), "o1", "closed");
   assert.equal(notAdmin.ok ? "" : notAdmin.message, ADMIN_MESSAGES.forbidden);
+  const pending = await setUserRole(rpcClient({ code: "42501", message: "confirm the email or invite the account before making it a professor" }), "u4", "professor");
+  assert.equal(pending.message, ADMIN_MESSAGES.needsVerification);
   const gone = await setOpportunityStatus(rpcClient({ code: "P0002", message: "opportunity not found" }), "o1", "closed");
   assert.equal(gone.ok ? "" : gone.message, ADMIN_MESSAGES.notFound);
 });

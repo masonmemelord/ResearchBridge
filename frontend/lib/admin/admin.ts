@@ -23,6 +23,8 @@ export type AdminUser = {
   role: AccountRole | null;
   createdAt: string;
   lastSignInAt: string | null;
+  emailConfirmedAt: string | null;
+  invitedAt: string | null;
 };
 
 export type AdminOpportunity = ProfessorOpportunity & { professorName: string | null };
@@ -32,6 +34,7 @@ export const ADMIN_MESSAGES = {
   postingsFailed: "Postings could not be loaded. Check your connection and try again.",
   forbidden: "Your account does not have admin access. Sign out and back in, or contact another admin.",
   roleFailed: "The role could not be changed. Check your connection and try again.",
+  needsVerification: "Confirm the email or invite the account before making it a professor. Verify faculty status with the team first.",
   ownRole: "You cannot change your own role.",
   adminRole: "Admin roles are managed in the Supabase SQL editor, not in the app.",
   notFound: "That record no longer exists. Refresh the list.",
@@ -63,6 +66,8 @@ export function normalizeAdminUsers(rows: readonly unknown[]): AdminUser[] {
       role: asRole(record.role),
       createdAt: asText(record.created_at),
       lastSignInAt: asText(record.last_sign_in_at) || null,
+      emailConfirmedAt: asText(record.email_confirmed_at) || null,
+      invitedAt: asText(record.invited_at) || null,
     });
   }
   return users;
@@ -119,6 +124,7 @@ function adminErrorMessage(error: { code?: string; message?: string } | null, fa
   if (error.code === "P0002") return ADMIN_MESSAGES.notFound;
   if (error.code === "22023") return ADMIN_MESSAGES.adminRole;
   if (error.code === "42501") {
+    if (error.message?.includes("confirm the email or invite")) return ADMIN_MESSAGES.needsVerification;
     if (error.message?.includes("their own role")) return ADMIN_MESSAGES.ownRole;
     if (error.message?.includes("admin roles")) return ADMIN_MESSAGES.adminRole;
     return ADMIN_MESSAGES.forbidden;

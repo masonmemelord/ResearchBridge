@@ -10,7 +10,8 @@ values
 insert into public.profiles (id, full_name, role) values
   ('f1111111-1111-4111-8111-111111111111', 'Editor A', 'professor'),
   ('f2222222-2222-4222-8222-222222222222', 'Editor B', 'professor'),
-  ('f3333333-3333-4333-8333-333333333333', 'Editing Student', 'student');
+  ('f3333333-3333-4333-8333-333333333333', 'Editing Student', 'student')
+on conflict (id) do update set full_name = excluded.full_name, role = excluded.role;
 insert into public.opportunities (
   id, professor_id, title, description, school, department, keywords,
   duration_semesters, eligible_class_years, positions_available, status, updated_at

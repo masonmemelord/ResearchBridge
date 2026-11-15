@@ -1434,6 +1434,406 @@ by the frontend.
 - The previously documented two development-only dependency advisories remain
   outside this feature; the runtime release audit is clean.
 
+## 2026-11-08 — Review Resend setup for public registration
+
+**Review outcome:**
+
+- Reviewed the current Supabase password sign-in, student signup/code verification,
+  release gate, local confirmation template, and earlier email setup backlog.
+  Checked current official Resend and Supabase documentation for domain verification,
+  custom SMTP credentials, redirect URLs, email templates, and sending limits.
+- Provided setup guidance for a verified sending subdomain, Resend SMTP in hosted
+  Supabase, production URLs, the `{{ .Token }}` confirmation template, capacity
+  planning, and fresh-inbox registration/sign-in verification.
+- Identified that `frontend/lib/release.ts` hard-disables public signup in production
+  even when `NEXT_PUBLIC_ENABLE_SELF_SIGNUP=true`; the matching release test also
+  enforces this. Connecting SMTP alone will not expose public registration.
+- No application implementation changes were made. Only `Docs.md` was updated;
+  existing uncommitted work was preserved. No DNS, hosted settings, credentials,
+  deployments, commits, or pushes were changed.
+
+**Verification and follow-ups:**
+
+- Read the relevant source files and `frontend/tests/release.test.mjs`; application
+  tests were not run because this session only reviewed configuration and guidance.
+- Hosted settings and the user's newly connected domain were not inspected, so
+  actual delivery remains unverified. Configure and verify SMTP, then deliberately
+  update/test the production signup gate and enable hosted registration before launch.
+- Check both Supabase email rate limits and Resend account quotas for the expected
+  launch volume; ordinary existing-account password sign-in does not send an email.
+
+## 2026-11-08 — Confirm Resend .org domain compatibility
+
+- Confirmed that a `.org` domain can be used for Resend sending after DNS
+  verification; reviewed the official verified-domain documentation.
+- Only `Docs.md` changed. No implementation or hosted configuration changes.
+  Application tests were not run because this was an informational follow-up.
+- Domain verification and actual email delivery still need to be completed.
+
+## 2026-11-08 — Student sign-up architecture review and plan
+
+**Review outcome (no application code or hosted settings changed):**
+
+- Wrote `docs/student-signup-auth.md`: responsibilities (Next.js, Supabase
+  Auth, Resend, Postgres), a sequence diagram of registration, code
+  verification, profile provisioning, and sign-in, edge-case behavior, hosted
+  settings, DNS, environment variables, launch limits, alternatives, and a
+  file-level implementation and rollout plan.
+- Recommendation: keep the current design (browser supabase-js, email +
+  password, six-digit code, trigger-created student profile, RLS). Codes
+  survive university mail scanners that pre-open links. Close three
+  database gaps before launch: (G1) any signed-in account, even without a
+  profile, can read published listings; (G2) users may insert their own
+  student profile, which no app code uses; (G3) any email domain can
+  self-register. Proposed fixes: require a profile for listing reads, drop the
+  self-insert policy, and add a Before User Created hook that limits
+  self-sign-ups to approved domains (assumed `tulane.edu`). Make the
+  production gate honor `NEXT_PUBLIC_ENABLE_SELF_SIGNUP=true`.
+- **Blocker:** untracked duplicate files with a ` 2` suffix, including
+  `backend/supabase/migrations/20261023120000_opportunity_details 2.sql`.
+  `supabase migration list --linked` shows it as a second, pending migration
+  with an already-applied version, so the next `supabase db push` would try
+  to apply it. Not removed; the files are not from this session.
+- Minor bug noted: the resend countdown says "Send another link in Ns"
+  instead of "code" (`frontend/components/auth/ResendConfirmation.tsx`).
+
+**Verification (read-only):**
+
+- Read `AGENTS.md`, `README.md`, recent `Docs.md` entries, the auth pages,
+  helpers, release gate and tests, all migrations, database tests, local
+  `config.toml`, and the installed Next.js 16.4.2 `authentication.md` and
+  `environment-variables.md` guides.
+- Hosted Auth public settings: `disable_signup: false`,
+  `mailer_autoconfirm: false`, email provider on. The Auth API already
+  accepts registrations from any address.
+- `supabase migration list --linked`: all 10 migrations applied; the duplicate
+  file appears as pending.
+- Live site `https://www.ntcresearchnetwork.org`: apex redirects to `www`;
+  `/sign-up` 307 to `/sign-in`; main routes 200. The old
+  `researchbridge-omega.vercel.app` alias now returns 404.
+- DNS: Resend DKIM (`resend._domainkey`) present; `send` CNAME to
+  `send.forge.rmta.net` supplies SPF and MX; **no DMARC record**. Whether these
+  match the Resend dashboard's expected values was not confirmed.
+- Checked current Supabase (rate limits, SMTP, templates, Before User Created
+  hook, CAPTCHA) and Resend (quotas, SMTP setup) documentation.
+- Not verified: SMTP configuration, confirmation template, OTP settings, Site
+  URL and redirect URLs, rate limits, Resend domain status and plan, Vercel
+  environment variables, and actual email delivery. No test sign-up was made.
+  No tests were run because no code changed. Local Supabase was not running and
+  was not started.
+
+**Decisions needed / next steps:**
+
+- Choose allowed sign-up domains, the Resend plan for launch week, and whether
+  to turn hosted "Allow new users to sign up" off until launch (recommended).
+- Remove the duplicate ` 2` files, then implement Step 1 of the plan as one PR.
+- No commits, pushes, deployments, DNS, or hosted setting changes were made.
+  Existing uncommitted work on `codex/professor-opportunity-editing` was left
+  untouched.
+
+## 2026-11-08 — Review signup architecture proposal for bypasses
+
+**Review outcome:**
+
+- Reviewed `docs/student-signup-auth.md`, the profile provisioning and RLS
+  migrations, the admin provisioning RPC, and official Supabase hook/user docs.
+- The proposed domain hook checks only requests marked `self_signup=true`.
+  That marker is client-controlled; omitting it would still allow non-approved
+  Auth registrations and email sends. Dropping profile inserts and requiring a
+  profile would restrict application access, but would not prevent those Auth
+  registrations. A trusted provisioning exception needs separate design and tests.
+- Flagged the proposed hook rollback: close hosted signup before disabling a
+  domain restriction, otherwise registration reopens without that restriction.
+- University-domain-only registration is a product decision rather than a Resend
+  requirement; the approved domain list remains unconfirmed by the user.
+- Compared all four untracked ` 2` copies with their original files: all are
+  byte-identical. No duplicates were removed and no migrations were pushed.
+
+**Verification and limits:**
+
+- Read-only source inspection and Python byte comparisons completed successfully.
+  No application tests or hosted checks were run; this was a proposal review.
+- Only `Docs.md` was updated. Application code, the architecture proposal,
+  hosted settings, DNS, deployments, and other uncommitted work were preserved.
+
+## 2026-11-08 — Student sign-up architecture, revision 2
+
+**Changes made:**
+
+- Revised `docs/student-signup-auth.md` (supersedes the first version's hook
+  design and rollback steps):
+  - **Trust model.** `self_signup` user metadata is now treated as
+    attacker-controlled: it is never proof that a request is public, and its
+    absence is never proof the team created an account. It only decides
+    whether the trigger gives an account the least-privileged role,
+    `student`.
+  - **Domain policy independent of metadata.** If university-only
+    registration is chosen, a Before User Created hook allows creation only
+    when the email domain is in `private.allowed_signup_domains` or the
+    address is in `private.account_approvals`. Both are team-only tables.
+    Direct API requests are rejected whether the marker is forged or
+    omitted. A request-by-request table covers forged, omitted, approved,
+    and team cases.
+  - **Trusted provisioning preserved.** The team adds an approval, creates
+    the user, then activates the role. New gap G3: `admin_set_user_role`
+    should require a professor approval, so an admin cannot accidentally
+    promote a stranger's direct-API account shown as "Needs a role".
+  - **Decision left open.** University-only registration and its allowed
+    domains are an unresolved product decision. The profile-read,
+    self-insert, and approval fixes apply either way.
+  - **Tests.** pgTAP cases for forged/omitted markers, normalization and
+    look-alike domains, approvals, privileges, profiles, and professor
+    activation. A local HTTP integration test sends real direct-API sign-ups
+    and Admin API creations, and records whether the hook runs for team
+    creations (still unverified).
+  - **Rollback corrected.** Turn hosted sign-up off before disabling or
+    changing the hook. Re-enable the hook and verify before turning sign-up
+    back on. Rollout also enables the hook before sign-up is opened.
+  - Fixed a column/variable name clash in the hook SQL sketch.
+- Removed the four untracked ` 2` duplicates after confirming with `cmp` that
+  each is byte-identical to its tracked original:
+  `backend/supabase/migrations/20261023120000_opportunity_details 2.sql`,
+  `backend/supabase/tests/verify_opportunity_details 2.sql`,
+  `frontend/lib/opportunities/details 2.ts`,
+  `frontend/tests/opportunity-details.test 2.mjs`.
+
+**Verification:**
+
+- `supabase migration list --linked` after removal: all 10 migrations
+  applied, nothing pending (the duplicate entry is gone).
+- `git status`: only `Docs.md` and `docs/student-signup-auth.md` changed by
+  this session; the other agent's uncommitted editing work is untouched.
+- No application code, hosted settings, DNS, or data changed. No tests were
+  run because no code changed; the proposed tests are specified in the
+  document for the implementation PR.
+
+**Open items:**
+
+- Confirm allowed sign-up domains (or open registration), the Resend launch
+  plan, and whether to turn hosted sign-up off until launch.
+- Commit or park `codex/professor-opportunity-editing`, then implement
+  Step 1 as one PR.
+
+## 2026-11-08 — Account sign-up and roles architecture, revision 3
+
+**Changes made (documentation only):**
+
+- Rewrote `docs/student-signup-auth.md` as revision 3, superseding the
+  revision 2 approval design:
+  - **Students fully self-service.** Proposed: replace the sign-up trigger
+    function so every new Auth user gets a `student` profile, whatever
+    metadata the client sends. `self_signup` is no longer read. No team step
+    for students.
+  - **"No self-created profiles" clarified** as blocking direct client
+    inserts into `profiles` (drop the self-insert policy). The database still
+    provisions the student profile during sign-up.
+  - **Professor approval without an approval table.** The approval is the
+    admin's `admin_set_user_role(…, 'professor')` call. Proposed rule: allowed
+    only for accounts whose email is confirmed or that the team invited
+    (`invited_at`), plus an append-only `private.role_changes` audit log.
+    Revision 2's `private.account_approvals` table is withdrawn. A table is
+    only warranted later for an in-app request queue or for hook exceptions.
+  - **Professor flow:** `mailto:` request link → team verifies faculty status
+    → dashboard invite → admin activates → new `/accept-invite` page (code +
+    set password). Interim: existing **Add user** with auto-confirm.
+  - **Admins:** dashboard **Add user**, then SQL Editor role update only.
+    Provisioning SQL in this file's reference section must switch to
+    `on conflict (id) do update` once the trigger creates every profile.
+  - **Public sign-up never yields professor or admin.** The document lists
+    each path an attacker could try and the control that blocks it.
+  - **New edge case (unverified):** an address registered by someone else
+    before the real owner verifies. Proposed fix: set the password again
+    after verification. An integration test settles whether it is needed.
+  - **University-only registration remains an open decision.** The hook now
+    reads only domain and exact-address exception tables.
+  - Rollback order kept: close hosted sign-up before touching the hook.
+  - Tests specified: pgTAP for metadata-independent provisioning, blocked
+    client inserts, the professor activation rule and audit log, privileges,
+    and admin provisioning; HTTP integration for direct-API sign-ups,
+    pre-registered addresses, invites, and admin creation.
+
+**Verification:**
+
+- Read the trigger (`20261004120000`), `admin_set_user_role` and
+  `prevent_profile_role_change` (`20261004200000`), and the provisioning
+  reference in this file to confirm current behavior.
+- No application code, migrations, hosted settings, DNS, or data changed. No
+  tests were run because no code changed.
+
+**Open items:**
+
+- Decide registration scope (allowed domains or open), the professor request
+  mailbox, the Resend launch plan, and whether to turn hosted sign-up off now.
+- Commit or park `codex/professor-opportunity-editing`, then implement Step 1
+  (database and gate) and Step 1b (professor invitation page).
+
+## 2026-11-08 — Review professor invitations and password ownership
+
+**Review outcome:**
+
+- Read the revised `docs/student-signup-auth.md` proposal and official Supabase
+  invitation, OTP, password-update documentation and current Auth signup source.
+- Current upstream signup source retains an existing unconfirmed user's password
+  on repeat signup. This supports the pre-registration concern, but behavior of
+  the project's deployed Auth version remains untested.
+- Recommended testing password A / repeated signup with password B / mailbox
+  verification, then both logins, including the interval before password update
+  and any session acquired during that interval. A frontend password update is
+  not an atomic verification-and-password replacement guarantee.
+- Reviewed the professor request, team invitation, code verification and password
+  setup design. Invite codes require the Invite user template and invite OTP type;
+  confirmed existing student accounts need promotion, not deletion/recreation.
+
+**Verification and limits:**
+
+- Documentation/source review only; no test accounts, emails, migrations, hosted
+  configuration or application changes. Only `Docs.md` updated. No application
+  tests were run. The planned Auth integration tests remain required before launch.
+
+## 2026-11-08 — Pre-registration (password A/B) test
+
+**What was run:** a local experiment only, with no hosted accounts, emails,
+or settings touched. Docker Desktop was started, and local Supabase
+(CLI 2.104.0, GoTrue v2.196.0) ran with Mailpit as the inbox and throwaway
+`@example.test` addresses. `backend/supabase/config.toml` was temporarily
+changed to allow local sign-up and to raise the local email limit from 2 to
+20 per hour. It was restored byte-for-byte afterwards (`cmp` clean, no git
+diff). The four test users were deleted and the local stack was stopped. The
+scripts are in the session scratchpad, not the repository.
+
+**Results:**
+
+- Without the fix: signing up with password A, then again with B, returns the
+  same user. After verifying the real inbox's code, **A signs in and B
+  fails**, and the profile keeps the first registrant's name. The
+  pre-registration risk is confirmed.
+- With `updateUser({ password: B })` right after verification: **B signs in,
+  A fails.** A session the stranger opened with A just before the update
+  cannot refresh, and Auth's `/user` rejects it. Its already-issued access
+  token still reads the database through RLS until it expires (one hour,
+  student-level access).
+
+**Documentation changes:** `docs/student-signup-auth.md`:
+- Section 6 now records the risk as confirmed.
+- New section 6.1 holds the results.
+- Step 1 makes the password update (and setting the profile name)
+  **required** on `/sign-up`.
+- `/verify-email` now asks for a new password.
+- The integration test asserts the fixed behavior.
+
+No application code changed.
+
+**Open items:** implement the fix in the Step 1 PR, and repeat the check on
+hosted staging (its GoTrue version and *Secure password change* setting are
+unverified).
+
+## 2026-11-08 — Pre-registration: gap login and interrupted setup tests
+
+**What was run (local only):**
+- Local Supabase: CLI 2.104.0, GoTrue v2.196.0, PostgREST v14.5.
+- Mailpit served as the inbox, with throwaway `@example.test` addresses.
+- `backend/supabase/config.toml` was changed temporarily: local sign-up on,
+  email limit 50/hour, `jwt_expiry` 60 s. It was restored byte-for-byte
+  (`cmp` clean, no git diff).
+- A candidate trigger was created in the local database only, then dropped.
+- All test users, the seeded listing, applications, and experiment objects
+  were deleted; the one pre-existing local user is untouched.
+- The local stack was stopped. Docker Desktop is still running.
+- Scripts are in the session scratchpad, not the repository.
+- The first run was interrupted by the user; its partial data was removed
+  before rerunning.
+- Nothing hosted was touched.
+
+**Results** (detail in `docs/student-signup-auth.md` sections 6.2–6.4):
+
+- **Gap login, password update only: fails.** A stranger who signs in with A
+  between verification and the update loses refresh and Auth `/user` access.
+  However, their issued access token kept RLS **read and write** access: it
+  read the profile and listings, changed the name, and created an
+  application. This lasted until about 30 s past the token's `exp` (PostgREST
+  clock skew), so up to about an hour on hosted defaults.
+- **Interrupted setup, password update only: owner recovers, but A stays
+  usable until they do.**
+  - Resuming with the saved refresh token and setting B works.
+  - Password recovery by email works.
+  - Both revoke the stranger's refresh tokens.
+- **Candidate fix: passes both cases.** A `before update` trigger on
+  `auth.users` clears the stored password when a pending self sign-up is first
+  confirmed. A never signs in, interrupted owners recover by refresh or by
+  recovery email, and all controls pass (normal sign-up, team Add user with
+  auto-confirm, team invite).
+  - The first version broke Add user with auto-confirm. Auth confirms those
+    accounts in a separate update, so the condition was narrowed to a
+    pending confirmation token or sent time.
+- Normal sign-up without the trigger: re-setting the same password returns
+  `422 same_password`; the page must treat that as success.
+
+**Documentation changes:** `docs/student-signup-auth.md` now has sections
+6.2–6.4. Step 1 adds the trigger, `/reset-password`, sign-in guidance, and
+`same_password` handling. The test plan adds gap, interrupted-setup, control,
+and trigger tests. Step 3 requires the full pre-registration suite on hosted
+staging with real inboxes before production registration opens.
+
+**Status:** locally verified; hosted behavior unverified. No application code
+or migrations changed.
+
+**Not done:** the staging run. It needs Step 1 implemented and deployed to
+Preview, plus the hosted SMTP, template, and URL settings, none of which
+exist yet.
+
+## 2026-11-08 — Assess confirmation trigger and launch fallback
+
+**Review outcome:**
+
+- Reviewed the candidate confirmation trigger and local experiment results in
+  `docs/student-signup-auth.md` sections 6.2–6.4. The reported results support
+  implementing the candidate with permanent tests before hosted staging; the
+  prototype is not yet a repository migration or deployed application fix.
+- Confirmed the dependency risk: the trigger changes `auth.users.encrypted_password`
+  using internal confirmation columns. Supabase warns that managed Auth columns
+  and other objects may change. Hosted compatibility is still unverified.
+- Flagged the proposed fallback as insufficient for launch: shorter JWT expiry
+  bounds an individual token after revocation but does not stop repeated password-A
+  logins while setup is interrupted and A remains stored. Keep registration closed
+  if the trigger fails staging until an alternative passes both security cases.
+- Next work: implement migration, post-verification password setup and recovery,
+  retain permanent tests, then run the complete suite in an isolated hosted staging
+  project with its own email/URL configuration before opening production signup.
+
+**Verification and limits:**
+
+- Read repository proposal/log and official Supabase session and managed-user-data
+  documentation. No independent rerun of the reported experiments or application
+  tests, and no hosted access or mutations. Only `Docs.md` changed this review.
+
+## 2026-11-08 — Summarize pre-push work and launch dependencies
+
+**Review outcome:**
+
+- Checked working-tree status, package scripts, the production signup gate,
+  migration inventory and the current architecture implementation plan.
+- Current branch remains `codex/professor-opportunity-editing` with uncommitted
+  feature work. Auth hardening is still a proposal/local prototype: no permanent
+  hardening migration, `/reset-password` or `/accept-invite` page is present.
+  The production signup gate still always returns false. Duplicate ` 2` files
+  are no longer present in working-tree status.
+- Explained that dependencies come from coordinating Auth confirmation/password
+  handling, profile provisioning/RLS, recovery, and professor/admin onboarding;
+  the role hierarchy itself is not a package dependency conflict.
+- Recommended separating the existing editing work from an auth PR, implementing
+  the database and matching UI/recovery with permanent tests, and running local
+  release/database/integration checks before pushing a reviewable auth branch.
+- Distinguished pushing a review branch from production launch: hosted staging
+  with its own Supabase project must precede production auth rollout; a Vercel
+  Preview alone does not isolate the database. Production signup stays closed
+  until the hosted tests pass. Do not rely on a shorter JWT lifetime fallback.
+
+**Verification:**
+
+- Read-only repository inspection completed. Tests/builds were not run because
+  this was a readiness overview and no application implementation changed.
+- Only `Docs.md` updated; no commits, pushes, deployments or hosted mutations.
+
 ## 2026-11-08 — Verify professor opportunity editing for branch push
 
 **Completed review and preparation:**
@@ -1482,3 +1882,176 @@ by the frontend.
   the separate signup workstream documented in the local architecture review.
 - Teammate review and a live professor/student smoke test remain before merging
   and releasing the editing feature. No production deployment was requested.
+
+## 2026-11-08 — Post-push confidence and next steps
+
+**Review outcome:**
+
+- Confirmed opportunity-editing commit `72cc13817cf161f347ee1626b8e7631d494f3556`
+  was pushed; the local feature branch tracks its matching remote branch.
+- GitHub commit status reports Vercel deployment success. Check runs show
+  Vercel Preview Comments succeeded and Supabase Preview was skipped.
+- No pull request exists for `codex/professor-opportunity-editing` yet.
+- Recommended opening a PR, teammate review and signed-in preview smoke tests
+  for owner edits, student visibility, application preservation and conflicts,
+  followed by merge and a production smoke test. Hosted signed-in flows have
+  not been independently verified in this push session.
+- Confidence is high for the editing feature's tested local behavior; it is
+  ready for review. The auth confirmation trigger remains a separate local
+  prototype, requiring implementation and hosted staging before signup launch.
+
+**Verification:**
+
+- Read Git status/commit and GitHub statuses, check-runs and PR-list APIs.
+  Application tests were not repeated because code has not changed since the
+  passing pre-push checks. Only `Docs.md` updated; no PR, merge, deployment,
+  hosted configuration change or additional push was performed.
+
+## 2026-11-08 — Implement student signup security and account recovery
+
+**Completed implementation:**
+
+- Created local branch `codex/student-signup-auth` from pushed editing commit
+  `72cc138`, preserving the uncommitted architecture notes and shared-log history.
+  This branch follows the editing feature; merge that feature first or rebase
+  before opening an independent auth PR. No auth commit or push was made.
+- Added `backend/supabase/migrations/20261108120000_account_signup_hardening.sql`:
+  every new Auth account gets a student profile regardless of metadata; client
+  profile INSERT is removed; published listing reads require a profile; professor
+  promotion requires an admin plus a confirmed or team-invited target; role changes
+  are audited in a private table without client access. Admin listing now exposes
+  trusted confirmation/invitation timestamps. Existing confirmed users' roles and
+  passwords are preserved; older profileless accounts are not automatically activated.
+- Added the tested `before update` confirmation trigger, which clears the password
+  selected before inbox ownership was proved in the same transaction as first
+  pending-signup confirmation. It depends on Auth-managed fields and needs hosted
+  staging and upgrade checks. No weaker JWT-expiry fallback is accepted.
+- Added `frontend/lib/auth/password-setup.ts`, `components/auth/PasswordSetup.tsx`
+  and `AccountCodeFlow.tsx`, plus `/reset-password` and `/accept-invite` pages.
+  Signup and `/verify-email` now finish password setup after email verification;
+  legacy `/auth/callback` links also offer setup. Signup prefills the original
+  password only from memory and lets the verified owner confirm/change it. Setup
+  checks the server-verified identity, accepts only `same_password` for idempotent
+  retries, saves the owner's name, and preserves a recoverable session on failure.
+- Updated `frontend/app/sign-up/StudentSignup.tsx`, `app/sign-in/page.tsx`,
+  `app/verify-email/page.tsx`, `app/auth/callback/page.tsx`, `lib/auth/signup.ts`,
+  and `components/auth/ResendConfirmation.tsx` for code wording, duplicate-submit
+  protection, password recovery discovery and clearer verification errors.
+- Updated `frontend/app/admin/page.tsx` and `lib/admin/admin.ts` to show trusted
+  confirmation/invitation state and explain refused promotions. The team still
+  verifies faculty identity; email confirmation alone is not faculty approval.
+- Changed only the public signup gate in `frontend/lib/release.ts` to honor the
+  exact `NEXT_PUBLIC_ENABLE_SELF_SIGNUP=true` build-time flag in production.
+  It defaults off. Resume/draft production restrictions remain in place. No hosted
+  flag or Auth setting was changed, and no domain restriction was added.
+- Added code-only recovery/invitation templates in `backend/supabase/templates/`
+  and configured them locally in `backend/supabase/config.toml`, with local redirect
+  URLs. Hosted templates must be configured separately. Local signup stays off.
+- Added frontend password-setup tests and real Auth HTTP tests at
+  `frontend/tests/integration/account-roles.integration.mjs`; updated package
+  scripts, release/admin tests, and existing SQL fixtures for automatic profiles.
+  Added `backend/supabase/tests/verify_account_roles.sql` for provisioning, RLS,
+  confirmation clearing, role activation/audit and private-table privileges.
+- Added `.github/workflows/quality.yml` for PR/main release checks, database tests,
+  schema lint and Auth integration using local services and pinned Supabase CLI.
+  Updated `README.md`, `frontend/.env.example`, and `docs/student-signup-auth.md`
+  with setup, tradeoffs, environment variables, coordinated rollout and rollback.
+  The original architecture review remains available alongside its implementation update.
+
+**Verification:**
+
+- Read installed Next.js authentication/environment-variable guides and official
+  Supabase Auth/setup-cli documentation before implementation.
+- Applied the new migration locally with `supabase migration up --local`; no reset.
+  `supabase test db --local`: all 153 assertions across seven files passed.
+  `supabase db lint --local --level warning`: no schema errors.
+- `NEXT_PUBLIC_ENABLE_SELF_SIGNUP=false npm run release:check`: passed (lint,
+  route generation, TypeScript, 64 unit tests, runtime audit with zero findings,
+  production Turbopack build). Final subsequent source edits were comment/error-copy
+  changes only. New recovery and invitation routes appear in build output.
+- `npm run test:auth:integration -- --manage-local --database-checks`: passed
+  all 153 database assertions and 11 real Auth scenarios, including eight competing
+  password grants around confirmation, A/B password ownership, interrupted setup
+  resumed with a session or recovery code, forged metadata, blocked self-promotion,
+  team auto-confirm, fresh invitations, invitations of existing unconfirmed accounts,
+  and promotion of confirmed students without replacing their account or name.
+- Initial integration assertions passed, but cleanup exposed the existing non-cascade
+  `profiles_id_fkey`. Corrected the runner to remove its profiles before Auth users,
+  clean its audit rows/messages, and restore config in a nested finally. Removed the
+  initial synthetic accounts explicitly. Subsequent complete runs cleaned up all
+  seven synthetic accounts per run and restored config byte-for-byte.
+- Browser rendering/empty-form validation inspected for signup, verification,
+  recovery and invitation; sign-in recovery link verified. No console errors were
+  captured, and the narrow sign-in layout was visually inspected. Credential flows
+  were exercised through real Auth API tests rather than entered in the browser.
+- Workflow YAML parses; its exact command passed locally, but the first GitHub
+  Actions run is pending a later push/PR. Existing development-only dependency
+  advisories remain separate; no runtime dependencies or lockfile changes.
+- `git diff --check` and targeted credential/whitespace review, including new files:
+  passed. Stopped the temporary browser/frontend and local Supabase services;
+  original local data was preserved. Hosted environment files/settings/data were
+  untouched. No commits, pushes, production migrations or deployments were made.
+
+**Remaining rollout requirements:**
+
+- Review the migration and complete hosted staging on an isolated Supabase project
+  with the new frontend, actual SMTP/templates/URLs and real controlled inboxes.
+  The linked hosted Auth version differs from local; compatibility and email
+  delivery are unverified. Keep production registration closed during rollout;
+  changing the UI gate does not close the direct Supabase Auth API.
+- Domain restrictions, the professor-request mailbox, and launch sending capacity
+  remain product/configuration decisions. These do not block the implemented local
+  password-ownership fix. Do not deploy the confirmation trigger without the matching
+  password-setup and recovery UI, or drop it as a fallback while pending accounts exist.
+
+## 2026-11-08 — Pre-push review of student signup security branch
+
+**Review outcome (no implementation changes):**
+
+- Reviewed the uncommitted work on `codex/student-signup-auth` (based on
+  editing commit `72cc138`):
+  - the migration `20261108120000_account_signup_hardening.sql`;
+  - password setup, recovery, and invitation pages and components;
+  - the sign-up, verify-email, callback, sign-in, and admin changes;
+  - the release gate, templates, and config;
+  - the pgTAP and integration tests, the CI workflow, the README, and
+    `.env.example`.
+- **Verdict:** ready to commit and push as a review branch. Not ready to merge
+  or deploy until hosted staging passes.
+- **Before or at push:**
+  - Nothing is committed yet. Include `docs/`, `.github/`, and the new files.
+  - The branch stacks on the unmerged editing commit: merge that first, or
+    target the PR at the editing branch.
+  - Confirm `NEXT_PUBLIC_ENABLE_SELF_SIGNUP` is unset or `false` for Vercel
+    Preview, because previews likely use production Supabase.
+- **Non-blocking findings to fix before merge:**
+  - Recovery (`/reset-password`) does not ask for a name. A pre-registrant's
+    name can therefore persist if the owner recovers instead of finishing
+    `/sign-up`, and applications copy `profiles.full_name` to professors.
+  - `/auth/callback` now shows password setup to any signed-in visitor.
+  - The integration runner's 180 s CLI timeout may be tight for a cold
+    `supabase start` on GitHub runners, and its errors are withheld. Watch
+    the first CI run.
+  - The migration is the only one with explicit `begin`/`commit`. It
+    applied cleanly locally.
+  - Before merging, check whether the Supabase GitHub integration
+    auto-applies migrations. The README requires the frontend to deploy
+    before the migration.
+
+**Verification run during review:**
+
+- `NEXT_PUBLIC_ENABLE_SELF_SIGNUP=false npm run release:check`: passed. That
+  covers lint, typegen, `tsc`, 64/64 unit tests, `npm audit --omit=dev` (0
+  vulnerabilities), and the production build. The build includes
+  `/reset-password` and `/accept-invite`.
+- `npm run test:auth:integration -- --manage-local --database-checks`: passed.
+  pgTAP: 7 files, 153 tests. Schema lint: no output. Real Auth scenarios: 11/11.
+  The runner removed its 7 synthetic users and stopped the stack.
+  `config.toml` is byte-identical to its pre-run state.
+- Secret-pattern scan of the diff and untracked files: no matches.
+  `.env.local` is ignored by `frontend/.gitignore`.
+- The GitHub action `supabase/setup-cli@v3` tag exists.
+
+**Not verified:** hosted Auth compatibility, email delivery, and the
+first GitHub Actions run. Only `Docs.md` was updated in this review. No
+commits, pushes, or hosted changes were made.

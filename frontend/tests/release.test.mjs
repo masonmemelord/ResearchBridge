@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { PILOT_CONTACT_EMAIL, pilotEmailHref, publicSignupEnabled, resumeDemoEnabled, draftSavingEnabled } from "../lib/release.ts";
 
-for (const [name, enabled] of [["self signup", publicSignupEnabled], ["resume demo", resumeDemoEnabled], ["draft saving", draftSavingEnabled]]) {
+for (const [name, enabled] of [["resume demo", resumeDemoEnabled], ["draft saving", draftSavingEnabled]]) {
   test(`${name} cannot be enabled in production`, () => {
     for (const flag of ["true", "false", "", undefined]) assert.equal(enabled(flag, "production"), false);
   });
@@ -33,4 +33,10 @@ test("opportunity title is encoded and cannot add an email recipient or header",
   assert.equal(url.searchParams.get("subject"), `ResearchBridge opportunity: ${title.replace(/\r\n/g, " ")}`);
   assert.doesNotMatch(url.searchParams.get("subject"), /[\r\n]/);
   assert.match(url.searchParams.get("body"), /faculty-approved next steps/);
+});
+
+test("public signup defaults closed and honors only the exact true flag", () => {
+  for (const flag of ["false", "", "TRUE", "1"]) assert.equal(publicSignupEnabled(flag), false);
+  assert.equal(publicSignupEnabled("true"), true);
+  assert.equal(publicSignupEnabled(), process.env.NEXT_PUBLIC_ENABLE_SELF_SIGNUP === "true");
 });

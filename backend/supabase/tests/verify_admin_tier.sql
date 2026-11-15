@@ -17,7 +17,11 @@ values
   ('d1111111-1111-4111-8111-111111111111', 'Admin A', 'admin'),
   ('d2222222-2222-4222-8222-222222222222', 'Admin B', 'admin'),
   ('d3333333-3333-4333-8333-333333333333', 'Professor P', 'professor'),
-  ('d4444444-4444-4444-8444-444444444444', 'Student S', 'student');
+  ('d4444444-4444-4444-8444-444444444444', 'Student S', 'student')
+on conflict (id) do update set full_name = excluded.full_name, role = excluded.role;
+
+delete from public.profiles where id = 'd5555555-5555-4555-8555-555555555555';
+update auth.users set email_confirmed_at = now() where email like '%@admin.test';
 
 insert into public.opportunities (
   id, professor_id, school, department, keywords, title, description,

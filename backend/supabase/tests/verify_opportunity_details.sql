@@ -17,7 +17,8 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
 values ('d1111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'details-prof@test.edu', '', '{}', '{}');
 
 insert into public.profiles (id, full_name, role)
-values ('d1111111-1111-1111-1111-111111111111', 'Details Professor', 'professor');
+values ('d1111111-1111-1111-1111-111111111111', 'Details Professor', 'professor')
+on conflict (id) do update set full_name = excluded.full_name, role = excluded.role;
 
 -- Base row with every pre-existing required column; each test adds details.
 create temporary table base_listing as

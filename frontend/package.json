@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "dev:local": "node scripts/dev-local.mjs",
+    "test:auth:integration": "node --experimental-strip-types tests/integration/account-roles.integration.mjs",
     "test:resumes": "node --experimental-strip-types --test tests/resumes.test.mjs",
-    "test:auth": "node --experimental-strip-types --test tests/signup.test.mjs",
+    "test:auth": "node --experimental-strip-types --test tests/signup.test.mjs tests/password-setup.test.mjs",
     "test:release": "node --experimental-strip-types --test tests/release.test.mjs",
     "test:applications": "node --experimental-strip-types --test tests/applications.test.mjs",
     "test:admin": "node --experimental-strip-types --test tests/admin.test.mjs",

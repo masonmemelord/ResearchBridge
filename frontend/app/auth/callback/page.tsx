@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthShell, authStyles } from "../../../components/auth/AuthShell";
+import { PasswordSetup } from "../../../components/auth/PasswordSetup";
 import { ResendConfirmation } from "../../../components/auth/ResendConfirmation";
 import { useAuth } from "../../../lib/auth/auth-context";
 import { publicSignupEnabled } from "../../../lib/release";
-import { AUTH_MESSAGES, ROLE_HOME } from "../../../lib/auth/profile";
+import { AUTH_MESSAGES } from "../../../lib/auth/profile";
 import {
   confirmationLinkErrorMessage,
   parseConfirmationLinkError,
@@ -20,10 +20,10 @@ type LinkState = ConfirmationLinkError | null | undefined;
 /**
  * Landing page for sign-up confirmation links. With the implicit flow,
  * supabase-js reads the tokens from the URL hash and signs the user in;
- * AuthProvider then resolves their profile and this page routes by role.
+ * AuthProvider resolves the identity; legacy links must finish password setup
+ * before the normal role-based navigation.
  */
 export default function AuthCallbackPage() {
-  const router = useRouter();
   const { state, retry, signOut, isSigningOut } = useAuth();
   const [linkError, setLinkError] = useState<LinkState>(undefined);
 
@@ -34,21 +34,8 @@ export default function AuthCallbackPage() {
     void Promise.resolve().then(() => setLinkError(parsed));
   }, []);
 
-  const destination = state.status === "signed-in" ? ROLE_HOME[state.role] : null;
-
-  useEffect(() => {
-    if (destination) router.replace(destination);
-  }, [destination, router]);
-
-  if (destination) {
-    return (
-      <AuthShell caption="Email confirmation">
-        <h1 className="font-serif text-3xl font-black tracking-tight text-rb-ink">You are signed in</h1>
-        <p role="status" className="mt-3 text-sm leading-6 text-rb-muted">
-          Your email is confirmed. Taking you to your ResearchBridge workspace…
-        </p>
-      </AuthShell>
-    );
+  if (state.status === "signed-in") {
+    return <PasswordSetup userId={state.userId} email={state.email ?? "your account"} />;
   }
 
   if (state.status === "loading" || linkError === undefined) {
