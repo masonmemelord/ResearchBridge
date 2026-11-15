@@ -1330,3 +1330,155 @@ by the frontend.
 - After merging, confirm the production deployment and smoke-test professor
   posting and student browsing. Two development-only dependency advisories
   remain as documented above; the verified runtime audit is clean.
+
+## 2026-10-24 — Post-merge status and next priorities
+
+**Review outcome:**
+
+- GitHub reports a successful Vercel deployment for merge commit `6008853`.
+  The Supabase check on that commit also succeeded. Local `main` was synced
+  and clean when inspected. No application changes were made in this review;
+  the only file updated is this session log, `Docs.md`.
+- Next: smoke-test the deployed professor-to-student workflow, including the
+  new opportunity details, an application, and professor applicant visibility.
+  Successful deployment checks do not verify those signed-in flows.
+- Then finish the existing student email/signup backlog: hosted SMTP, code
+  template, callback URLs, and fresh-inbox verification before opening the
+  production signup gate. Previously documented hosted settings need to be
+  rechecked rather than assumed current.
+- Follow with the documented development-only dependency advisories and
+  automated PR quality checks. Professor posting edits and targeted UI polish
+  are useful subsequent product work; hosted résumé scanning remains separate.
+
+**Verification:**
+
+- `git status --short --branch`: local `main` matched `origin/main` with no
+  pre-existing changes.
+- GitHub commit status API for `6008853`: Vercel `success`; check-runs API:
+  Supabase Preview `success`.
+- Read `README.md` and recent `Docs.md` entries. Application tests and live
+  signed-in browser flows were not rerun because this was a status/priorities
+  review. No commits, pushes, deployments, or hosted settings changes were made.
+
+## 2026-10-24 — Professor opportunity editing
+
+**Completed changes:**
+
+- Added **Edit opportunity** to each professor listing and the route
+  `frontend/app/professor/opportunities/[id]/edit/page.tsx`. Created branch
+  `codex/professor-opportunity-editing`, preserving the preceding uncommitted
+  documentation entry. Domain/email setup remains deferred while the user
+  waits for their club lead to purchase the domain.
+- Moved the existing create form into
+  `frontend/components/professor/OpportunityEditor.tsx` and its types,
+  validation, and explicit write-field allowlist into
+  `frontend/lib/opportunities/form.ts`. The new-posting page is now a small
+  wrapper around the shared editor. Create and edit use identical validation;
+  duration and class-year values are checked against the supported options.
+- Added `frontend/components/professor/EditOpportunityWorkspace.tsx` and
+  `frontend/lib/opportunities/editing.ts`: owner-filtered loading, prefilled
+  fields, retry/unavailable states, authenticated saves, and atomic
+  `updated_at` matching. Stale updates show a recoverable conflict rather than
+  overwriting newer changes. Reloading the latest version confirms before
+  discarding local edits.
+- Edits update the same opportunity ID and never write its owner, status,
+  timestamps, or applications. Existing RLS enforces professor ownership and
+  role on the server/database. Published, closed, and draft statuses are
+  preserved, including when an admin changes status while an editor is open.
+  No new database migration, dependency, environment variable, or domain is
+  required. Existing opportunity-details columns must already be present.
+- Added saving/duplicate-submit protection, confirmation focus, network-error
+  recovery, a Cancel discard confirmation, and browser unload warnings for
+  unsaved entries. Older listings explain which new details must be completed
+  before saving. Published edits appear when students refresh their listings.
+- Added `frontend/tests/opportunity-editing.test.mjs` (9 tests) and
+  `backend/supabase/tests/verify_opportunity_edits.sql` (12 assertions).
+  Updated `frontend/package.json` so `test:opportunities` runs both opportunity
+  suites. Updated `README.md` with the edit workflow and concurrency behavior.
+  The dashboard change is in `frontend/app/professor/opportunities/page.tsx`.
+
+**Verification:**
+
+- `npm run release:check`: passed (lint, route generation, TypeScript, 59 unit
+  tests, runtime audit with zero vulnerabilities, and default Turbopack
+  production build). The new dynamic edit route is included in build output.
+- `supabase test db --local`: all 128 assertions in six files passed.
+  `supabase db lint --local --level warning`: no schema errors. New checks
+  cover editing legacy details, ownership restrictions, preservation of
+  applications/status, database validation, and stale version rejection.
+- Real headless Chrome + local Supabase: all 27 browser/integration checks
+  passed. Covered dashboard discovery, prefill, paid-to-unpaid editing,
+  saved-row identity and applicant preservation, focus, legacy completion,
+  closed/draft privacy, conflicts/reload, blocked-network save/retry, Cancel
+  confirmation, another professor's URL/direct write, student visibility and
+  rejected writes, malformed URLs, and new-opportunity creation regression.
+- Checked the editor at 375px with no horizontal overflow and visually
+  inspected the full mobile screenshot. No uncaught browser exceptions.
+  Harness and evidence: `/private/tmp/researchbridge-edit-e2e/` (`run.cjs`,
+  `results.json`, `edit-mobile.png`). Synthetic accounts, profiles,
+  opportunities, and applications were removed afterward.
+- `git diff --check`: passed. Stopped the temporary local frontend and test
+  Chrome process. Existing Docker/local Supabase remain available. Hosted
+  configuration, hosted data, and local environment files were unchanged.
+  No commits, pushes, PRs, or deployments were made in this feature session.
+
+**Follow-ups and limits:**
+
+- Review and commit the feature branch before pushing/opening a PR. Perform
+  the live professor/student smoke test after deployment.
+- Editing preserves status; professor publish/close/reopen controls remain a
+  separate product improvement. Older listings must complete the new required
+  detail fields before edits can save.
+- Unsaved-change prompts cover Cancel, conflict reload, and browser unload;
+  other client-side navigation does not yet use a shared global navigation guard.
+- The previously documented two development-only dependency advisories remain
+  outside this feature; the runtime release audit is clean.
+
+## 2026-11-08 — Verify professor opportunity editing for branch push
+
+**Completed review and preparation:**
+
+- The user requested pushing `codex/professor-opportunity-editing` if safe.
+  Refreshed `origin`; the branch is based on current `origin/main` (`6008853`)
+  and no remote branch with this feature name existed at the time of inspection.
+- Reviewed the existing implementation: shared create/edit editor and validation,
+  owner-filtered loading, explicit writable fields, atomic `updated_at` matching,
+  preservation of listing identity/status/applications, and existing database RLS.
+  Read the installed Next.js dynamic-route guide. No implementation fixes needed.
+- Prepared a focused feature commit containing `README.md`, the professor new,
+  dashboard and edit routes, `EditOpportunityWorkspace.tsx`,
+  `OpportunityEditor.tsx`, `lib/opportunities/editing.ts` and `form.ts`,
+  `frontend/package.json`, frontend editing tests, database editing tests,
+  and the relevant entries in this shared log. Signup architecture notes and
+  their other log entries remain local for the separate auth work.
+
+**Verification:**
+
+- `npm ci --no-audit --no-fund`: passed; package-lock unchanged. This removed
+  duplicate installed type folders that initially blocked TypeScript. Cleared
+  the generated `.next` cache to remove duplicate route declarations; no source
+  or dependency-version changes were used to bypass these local cache failures.
+- `npm run release:check`: passed (lint, route type generation, TypeScript,
+  59 unit tests, runtime audit with zero vulnerabilities, default Turbopack
+  production build). Build includes `/professor/opportunities/[id]/edit`.
+- `supabase test db --local`: all 128 assertions in six files passed.
+  `supabase db lint --local --level warning`: no schema errors. Started the
+  existing local database without a reset for these checks and stopped it
+  afterward, preserving its data and restoring its previous stopped state.
+- Full `npm audit --json`: two high and eight moderate development-only package
+  findings under ESLint tooling (brace-expansion, zod, minimatch and affected
+  dependents). Reviewed with `npm ls`; none are in the runtime audit. Existing
+  tooling denial-of-service risks require a separate dependency update. No forced
+  downgrade or automatic audit fix was applied.
+- `git diff --check`: passed. Browser/hosted end-to-end tests were not repeated;
+  the original feature entry records the earlier 27 passing local browser checks.
+
+**Publication scope and follow-ups:**
+
+- Commit and push the verified feature branch for review; do not merge into
+  `main` or change hosted settings. No new migration is required by editing.
+- Keep the signup implementation separate. Public production signup remains
+  disabled in frontend code. Hosted auth risks and staging verification remain
+  the separate signup workstream documented in the local architecture review.
+- Teammate review and a live professor/student smoke test remain before merging
+  and releasing the editing feature. No production deployment was requested.

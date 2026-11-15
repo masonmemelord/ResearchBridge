@@ -38,6 +38,32 @@ Frontend form → Supabase Auth session → Data API → Database validation and
 Student browse page → Supabase Auth session → Data API → Published opportunities only
 ```
 
+### Editing professor opportunities
+
+From **My opportunities**, choose **Edit opportunity** to reopen a listing at
+`/professor/opportunities/<id>/edit`. The form uses the same fields and
+validation as posting a new opportunity. Existing listings with missing learning
+outcomes, duties, weekly hours, or compensation must have those details completed
+before saving.
+
+Edits update the original listing, keeping its applications, ownership, and
+published/draft/closed status. Published changes become visible to students when
+they reload or refresh their listings. Drafts and closed listings stay private.
+Changing status is a separate action; the edit form does not publish or reopen
+a listing.
+
+The database edit function authorizes the professor who owns the listing,
+accepts only editable fields, and requires the version loaded by the form. A
+conflict keeps the local entries and offers **Reload latest version** with a
+discard confirmation. Failed network requests can be retried. **Cancel** and
+leaving the page warn about unsaved entries where supported.
+
+Apply `backend/supabase/migrations/20261107120000_protect_opportunity_edits.sql`
+before releasing the edit UI. The migration disables direct client updates.
+Creating a listing and changing status via the admin function still work.
+Regression coverage is in `frontend/tests/opportunity-editing.test.mjs` and
+`backend/supabase/tests/verify_opportunity_edits.sql`.
+
 ## Team CI/CD Rules
 
 ### Branches and pull requests
