@@ -4,6 +4,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Agent instructions are maintained at the repository root, not generated here.
   agentRules: false,
+  experimental: {
+    agentUpgrade: "security",
+  },
   // The invite-request page was retired; old links and bookmarks go to sign-in.
   async redirects() {
     return [{ source: "/access", destination: "/sign-in", permanent: false }];
